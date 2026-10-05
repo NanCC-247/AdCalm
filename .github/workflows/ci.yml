@@ -74,6 +74,17 @@ jobs:
       - name: 装配 Debug APK
         run: ./gradlew --no-daemon assembleDebug
 
+      # 摆成"解开就是一个 apk"的样子。
+      #
+      # 不这么做也行，但那样 artifact 的 zip 里会带着 app/build/outputs/apk/debug/ 一整条
+      # 目录，下载的人得自己往里翻。**这个包是给人下载试用的**，那就别让他翻目录。
+      # 文件名带上提交号，别人拿到手能说清"我装的是哪一版"。
+      - name: 整理出要分发的包
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/adcalm-${GITHUB_SHA::7}.apk"
+          ls -la dist
+
       # 出一个可下载的调试包。
       #
       # **为什么是 artifact，而不是挂到 Release 资产上**——这是刻意的取舍：
@@ -88,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: adcalm-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: dist/*.apk
           # 比默认的 90 天短：它是个方便开发者试用的构建产物，不是长期分发渠道。
           retention-days: 30
           # 打不出包时让这一步直接失败，别静默产出一个空的 artifact。
