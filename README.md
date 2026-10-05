@@ -6,6 +6,12 @@ Android 常驻工具，自动处理打开 App 时的开屏/弹窗广告。
 - 被错误跳转或触发下载时，回退并清理
 - **其余用户自用的软件和后台一律不操作**
 
+<p align="center">
+  <img src="docs/artwork/promo/2026-10-05/01-少点广告多点清静.png" width="238" alt="少点广告，多点清静">
+  <img src="docs/artwork/promo/2026-10-05/02-本机识别减少打扰.png" width="238" alt="本机识别，减少打扰">
+  <img src="docs/artwork/promo/2026-10-05/03-回退与恢复更可控.png" width="238" alt="回退与恢复，更可控">
+</p>
+
 > 定位是自用侧载工具。因为使用无障碍服务 + 所有文件访问权限，不可能上架任何应用商店。
 
 <p align="center">
