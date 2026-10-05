@@ -1,0 +1,37 @@
+name: 功能建议
+description: 希望增加或改变什么
+labels: [ enhancement ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先读 README 的「分享与法律风险」和「不要让新会话推翻的设计决策」（在
+        `docs/` 之外的说明里）。有几条是刻意这么设计的，不是遗漏：
+
+        - **默认规则库故意为空**——不随项目分发按厂商/按应用点名的规则清单
+        - **只发布源码，不发布 APK**
+        - **只有 ShizukuInstaller 一个文件联网**
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 描述场景，而不是先说方案。方案往往有更好的做法。
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你设想的做法（可选）
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: redlines
+    attributes:
+      label: 这个建议会不会碰到上面的红线
+      options:
+        - label: 它需要随项目分发按应用/按厂商点名的规则清单
+        - label: 它需要新增联网调用
+        - label: 它需要提供可直接安装的成品

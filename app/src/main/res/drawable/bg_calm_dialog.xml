@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  弹窗背景。刻意和 @style/Calm.Card 完全对齐：同一个圆角、同一道 1dp 描边、同样不要阴影。
+  应用里的卡片长这样，弹窗要是带投影又是另一套圆角，摆在一起看得出是两个来源。
+
+  为什么不用主题里的 shapeAppearanceMediumComponent：
+  Material3 的弹窗背景是它自己画的 MaterialShapeDrawable，那条属性在这里不生效，
+  只能直接换掉窗口背景。
+
+  **不要加 stroke。** 这个背景会被套到弹窗内部的每一块面板上（标题、正文、按钮各一层），
+  加了描边就会看到三个各自裹了一圈的小圆角框，比不调还难看。
+  卡片那道 1dp 描边因此只能放弃——圆角和留白对上了就够了。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/calm_surface" />
+    <corners android:radius="22dp" />
+</shape>

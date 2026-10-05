@@ -1,0 +1,73 @@
+# 工具链（约 3.3GB，绝不能提交）
+.toolchain/
+
+# Gradle
+.gradle/
+build/
+app/build/
+
+# 本机配置——编辑器/工具的本机设置，不该跟着代码走
+local.properties
+*.iml
+.idea/
+.claude/settings.local.json
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 不要提交构建产物。只发布源码，不发布可直接安装的 APK——
+# 提供成品会显著抬高法律暴露度（详见 README 的「分享与法律风险」一节）。
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# 观察日志（含设备上的应用清单，属于个人数据）
+observer_log*.jsonl
+*.jsonl
+
+# UI 改版审核稿。是设计过程产物（约 9MB 的静态图 + 生成提示词），不是要分发的项目内容。
+# 如果要正式采纳某个方案，把定稿的设计规范挪到 docs/ 下再提交。
+design-review/
+
+# 和本项目无关、只是生成在这个目录下的东西。各自属于另一个任务，都不该跟着源码分发。
+# 它们当时还在被别的会话使用，所以这里是排除而不是删除——真要清走，等那些会话结束再说。
+#   wallpaper-video-review/  约 112MB 的壁纸视频工程（分析帧 + 配乐 + HyperFrames 工程）
+#   desktop-tools/           Windows 桌面显隐批处理，和 Android 项目毫无关系
+wallpaper-video-review/
+desktop-tools/
+
+# 交接说明是写给接手的人/AI 会话看的内部笔记：里面有和这位用户协作的方式、
+# 设备细节、以及一路踩过的坑。放在公开仓库里读起来不合适。只留本地。
+docs/交接说明.md
+.kotlin/
+
+# 图标源图在根目录也放了一份，但正式的那份在 docs/artwork/ 下（README 引用的是那边）。
+# 根目录这份是打包时的临时输入，不跟着源码走。
+/图标.png
+
+# JVM 崩溃日志。Gradle 守护进程崩过一次就会在项目根目录留下一堆，
+# 和源码毫无关系（含内存快照和线程栈，属于本机信息）。
+hs_err_pid*.log
+replay_pid*.log
+# 同类产物还有这些名字，一起挡掉——2026-10-05 公开前审计发现，
+# 历史上真的进过三份崩溃日志，删掉文件也没用，它们还留在历史里。
+*.hprof
+*.heapsnapshot
+java_pid*.hprof
+
+# 排查时用的 logcat 抓取文件（本地证据，不进仓库）
+_adcalm_*.log
+
+# 本地分析文档（含 SDK 名称与内部结论，不进仓库）
+docs/广告形态与识别对策-*.md
+# 本地评估文档（含设备型号与内部分析，不进仓库）
+docs/软件状态评估-*.md
+# 本地竞品/市场分析（含本机绝对路径与内部分析，不进仓库）。
+# 这条是 2026-10-05 公开前审计补的：另外两份分析文档都有 ignore 规则，
+# 唯独这一份漏了，`git add -A` 一下就会跟着上传。
+docs/市场竞争分析*.md
+
+# 发布工具与指南：本机工作流，不进仓库（指南里有本机路径与个人操作步骤）
+/publish.sh
+docs/上传GitHub指南.md

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="calm_background">#F7FBFA</color>
+    <color name="calm_surface">#FFFFFF</color>
+    <color name="calm_primary">#4AAFA8</color>
+    <color name="calm_primary_dark">#277E79</color>
+    <color name="calm_primary_light">#63BFBA</color>
+    <color name="calm_text">#1E4448</color>
+    <color name="calm_text_secondary">#60777F</color>
+    <color name="calm_text_muted">#788C94</color>
+    <color name="calm_outline">#E2EEEB</color>
+    <color name="calm_mint">#EAF6F3</color>
+    <color name="calm_success">#318873</color>
+    <color name="calm_warning">#996D36</color>
+    <color name="calm_warning_surface">#FAF3E9</color>
+    <color name="calm_error">#AF5656</color>
+    <color name="calm_error_surface">#F9EEEE</color>
+    <color name="calm_disabled">#B0C4C2</color>
+    <color name="calm_ripple">#234AAFA8</color>
+</resources>

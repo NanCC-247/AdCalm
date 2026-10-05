@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AdCalm</string>
+    <string name="app_picker_title">选择要处理的 App</string>
+    <string name="quarantine_title">隔离区</string>
+    <string name="setup_wizard_title">权限配置向导</string>
+    <string name="notification_listener_label">AdCalm · 下载通知拦截</string>
+    <string name="accessibility_service_label">AdCalm · 弹窗拦截</string>
+    <string name="accessibility_service_summary">识别并关闭其他应用中的广告弹窗</string>
+    <string name="accessibility_service_description">读取当前屏幕的窗口内容，识别广告弹窗上的关闭按钮并自动点击。开启后本应用才能工作。全部识别在本机完成，不联网、不上传任何数据。</string>
+</resources>

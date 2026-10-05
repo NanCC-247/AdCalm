@@ -1,0 +1,19 @@
+{
+  "source_sha256": "609ffae076e9d3d435f34e1a08b0dd519fe30b6515ab43c2c17270edc3b68d92",
+  "master_sha256": "609ffae076e9d3d435f34e1a08b0dd519fe30b6515ab43c2c17270edc3b68d92",
+  "source_dimensions": [
+    1254,
+    1254
+  ],
+  "artwork_edit": "none",
+  "adaptive_canvas_dp": 108,
+  "adaptive_content_dp": 72,
+  "background": "#27A4B7",
+  "densities": {
+    "mdpi": 1,
+    "hdpi": 1.5,
+    "xhdpi": 2,
+    "xxhdpi": 3,
+    "xxxhdpi": 4
+  }
+}

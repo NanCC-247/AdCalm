@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- The supplied design uses a light mint canvas in both system modes. -->
+    <style name="Theme.AdCalm" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/calm_primary</item>
+        <item name="colorOnPrimary">@color/calm_surface</item>
+        <item name="colorPrimaryContainer">@color/calm_mint</item>
+        <item name="colorOnPrimaryContainer">@color/calm_primary_dark</item>
+        <item name="colorSecondary">@color/calm_primary_dark</item>
+        <item name="colorOnSecondary">@color/calm_surface</item>
+        <item name="colorSecondaryContainer">@color/calm_mint</item>
+        <item name="colorOnSecondaryContainer">@color/calm_text</item>
+        <item name="colorSurface">@color/calm_surface</item>
+        <item name="colorOnSurface">@color/calm_text</item>
+        <item name="colorOnSurfaceVariant">@color/calm_text_secondary</item>
+        <item name="colorSurfaceVariant">@color/calm_mint</item>
+        <item name="colorOutline">@color/calm_outline</item>
+        <item name="colorError">@color/calm_error</item>
+        <item name="colorOnError">@color/calm_surface</item>
+        <item name="android:colorBackground">@color/calm_background</item>
+        <item name="android:windowBackground">@color/calm_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/calm_surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColorPrimary">@color/calm_text</item>
+        <item name="android:textColorSecondary">@color/calm_text_secondary</item>
+        <item name="android:colorAccent">@color/calm_primary</item>
+        <item name="materialButtonStyle">@style/Calm.PrimaryButton</item>
+        <item name="materialCardViewStyle">@style/Calm.Card</item>
+        <item name="materialAlertDialogTheme">@style/Calm.AlertDialog</item>
+        <item name="alertDialogTheme">@style/Calm.AlertDialog</item>
+        <item name="bottomNavigationStyle">@style/Calm.BottomNavigation</item>
+        <item name="toolbarStyle">@style/Calm.Toolbar</item>
+        <item name="checkboxStyle">@style/Calm.CheckBox</item>
+        <item name="switchStyle">@style/Calm.Switch</item>
+        <item name="materialSwitchStyle">@style/Calm.Switch</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+    </style>
+</resources>

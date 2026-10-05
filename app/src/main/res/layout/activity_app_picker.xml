@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/calm_background"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="64dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="20dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="返回首页"
+            android:padding="12dp"
+            android:src="@drawable/ic_calm_back"
+            app:tint="@color/calm_text" />
+
+        <TextView
+            style="@style/Calm.Title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="管理应用"
+            android:textSize="24sp" />
+
+        <TextView
+            android:id="@+id/tvToolbarStatus"
+            style="@style/Calm.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:accessibilityLiveRegion="polite"
+            android:maxLines="1"
+            android:text="自动保存"
+            android:textColor="@color/calm_primary_dark" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/selectionSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_calm_card"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="18dp">
+
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_calm_icon"
+            android:importantForAccessibility="no"
+            android:padding="12dp"
+            android:src="@drawable/ic_calm_shield"
+            app:tint="@color/calm_primary_dark" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="14dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvSelectedCount"
+                style="@style/Calm.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:accessibilityLiveRegion="polite"
+                android:text="正在读取应用"
+                android:textSize="21sp" />
+
+            <TextView
+                style="@style/Calm.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="仅处理你选择的应用"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/etSearch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:background="@drawable/bg_calm_search"
+        android:drawableStart="@drawable/ic_calm_search"
+        android:drawablePadding="10dp"
+        android:drawableTint="@color/calm_text_secondary"
+        android:hint="搜索应用名称或包名"
+        android:imeOptions="actionSearch"
+        android:importantForAutofill="no"
+        android:inputType="text"
+        android:maxLines="1"
+        android:minHeight="52dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:selectAllOnFocus="false"
+        android:textColor="@color/calm_text"
+        android:textColorHint="@color/calm_text_secondary"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnFilterAll"
+            style="@style/Calm.SecondaryButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:minWidth="76dp"
+            android:text="全部"
+            android:textSize="13sp"
+            app:cornerRadius="18dp"
+            android:insetTop="5dp"
+            android:insetBottom="5dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnFilterSelected"
+            style="@style/Calm.SecondaryButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_marginStart="8dp"
+            android:minWidth="76dp"
+            android:text="已选择"
+            android:textSize="13sp"
+            app:cornerRadius="18dp"
+            android:insetTop="5dp"
+            android:insetBottom="5dp" />
+
+        <TextView
+            android:id="@+id/tvListSummary"
+            style="@style/Calm.Caption"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:paddingStart="8dp"
+            android:text="正在加载" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/bulkActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSelectAll"
+            style="@style/Calm.SecondaryButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_weight="1"
+            android:minWidth="0dp"
+            android:text="全选"
+            android:textSize="13sp"
+            android:insetTop="5dp"
+            android:insetBottom="5dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnInvert"
+            style="@style/Calm.SecondaryButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:minWidth="0dp"
+            android:text="反选"
+            android:textSize="13sp"
+            android:insetTop="5dp"
+            android:insetBottom="5dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClearAll"
+            style="@style/Calm.SecondaryButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:minWidth="0dp"
+            android:text="清空"
+            android:textSize="13sp"
+            android:insetTop="5dp"
+            android:insetBottom="5dp" />
+    </LinearLayout>
+
+    <com.google.android.material.checkbox.MaterialCheckBox
+        android:id="@+id/cbIncludeHidden"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:minHeight="48dp"
+        app:buttonTint="@color/calm_primary_dark"
+        app:buttonIconTint="@color/calm_surface"
+        android:paddingEnd="8dp"
+        android:text="包含没有桌面图标的应用"
+        android:textColor="@color/calm_text"
+        android:textSize="13sp" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvApps"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="16dp" />
+
+        <LinearLayout
+            android:id="@+id/loadingState"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/calm_background"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <ProgressBar
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:indeterminateTint="@color/calm_primary" />
+
+            <TextView
+                style="@style/Calm.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="正在读取已安装应用" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/emptyState"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/bg_calm_icon"
+                android:importantForAccessibility="no"
+                android:padding="14dp"
+                android:src="@drawable/ic_calm_apps"
+                app:tint="@color/calm_primary_dark" />
+
+            <TextView
+                android:id="@+id/tvEmptyMessage"
+                style="@style/Calm.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:text="未找到应用" />
+
+            <TextView
+                android:id="@+id/tvEmptyHint"
+                style="@style/Calm.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:text="试试其他关键词，或显示无图标应用。" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigation"
+        style="@style/Calm.BottomNavigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/calm_surface"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/calm_bottom_navigation" />
+</LinearLayout>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/calm_background" android:orientation="vertical">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" style="@style/Calm.Toolbar"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+        app:navigationContentDescription="返回" app:navigationIcon="@drawable/ic_calm_back" app:title="权限配置" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp" android:layout_marginTop="12dp" android:background="@drawable/bg_calm_card" android:orientation="vertical" android:padding="20dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_calm_icon"
+                android:importantForAccessibility="no" android:padding="12dp" android:src="@drawable/ic_calm_shield" app:tint="@color/calm_primary_dark" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:layout_weight="1" android:orientation="vertical">
+                <TextView style="@style/Calm.Title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="让保护准备就绪" android:textSize="20sp" />
+                <TextView android:id="@+id/tvProgress" style="@style/Calm.Caption" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp" android:accessibilityLiveRegion="polite" android:text="正在检查权限" />
+            </LinearLayout>
+            <TextView android:id="@+id/tvCompletion" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="8dp" android:textColor="@color/calm_primary_dark" android:textSize="19sp" android:textStyle="bold" />
+        </LinearLayout>
+        <com.google.android.material.progressindicator.LinearProgressIndicator android:id="@+id/progressPermissions"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:importantForAccessibility="no"
+            app:indicatorColor="@color/calm_primary" app:trackColor="@color/calm_mint" app:trackCornerRadius="3dp" app:trackThickness="5dp" />
+        <TextView android:id="@+id/tvHint" style="@style/Calm.Body" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp" android:lineSpacingExtra="3dp" android:text="开启后返回这里，状态会自动更新。先完成必需权限，其余可按需要开启。"
+            android:textColor="@color/calm_text_secondary" android:textSize="13sp" />
+    </LinearLayout>
+    <TextView style="@style/Calm.Caption" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingStart="24dp" android:paddingEnd="24dp" android:paddingTop="20dp" android:paddingBottom="10dp" android:text="逐项配置" android:textStyle="bold" />
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvSteps" android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:clipToPadding="false" android:paddingStart="20dp" android:paddingEnd="20dp" android:paddingBottom="20dp" android:scrollbars="none" />
+</LinearLayout>

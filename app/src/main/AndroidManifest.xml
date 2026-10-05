@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 枚举已安装应用、判断目标包性质 -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+    <!-- 判定哪些 App 是"用户主动启动过"的（保护名单 L2 的依据） -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- 隔离广告下载的文件 -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <!-- 保活 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Shizuku：向 Shizuku 应用申请 shell 权限。没装 Shizuku 时这条权限无副作用 -->
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+
+    <!--
+      联网权限：只用于「下载并安装 Shizuku」这一个由用户主动触发的动作。
+      广告识别、判定、点击全程离线，不需要网络也能完整工作。
+      README 与免责声明里对此有明确说明——不要把这条权限用于别处。
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 拉起系统安装器安装刚下载的 Shizuku。真正的安装仍需用户在系统对话框里确认 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application
+        android:name=".AdCalmApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AdCalm"
+        tools:targetApi="35">
+
+        <activity
+            android:name=".ui.SplashActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.AdCalm">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 真正的主界面。启动入口在 SplashActivity，它停一下再进来。
+             exported 保持 true 是为了 adb 能直接拉起来做真机排查。 -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name" />
+
+        <activity
+            android:name=".ui.AppPickerActivity"
+            android:exported="false"
+            android:label="@string/app_picker_title" />
+
+        <activity
+            android:name=".ui.QuarantineActivity"
+            android:exported="false"
+            android:label="@string/quarantine_title" />
+
+        <activity
+            android:name=".ui.AdPackageCleanActivity"
+            android:exported="false"
+            android:label="清理广告安装包" />
+
+        <activity
+            android:name=".ui.QuickStartActivity"
+            android:exported="false"
+            android:label="两步开启" />
+
+        <activity
+            android:name=".ui.SetupWizardActivity"
+            android:exported="false"
+            android:label="@string/setup_wizard_title" />
+
+        <activity
+            android:name=".ui.ObservationLogActivity"
+            android:exported="false"
+            android:label="观察日志" />
+
+        <!-- 能力自检。launchMode 必须是 singleTop：它在检查过程中会跳去系统的应用信息页
+             再回来，靠 FLAG_ACTIVITY_REORDER_TO_FRONT 复用同一个实例——重建的话
+             前面几项已经跑出来的结果就没了。 -->
+        <activity
+            android:name=".ui.SelfCheckActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:label="能力自检" />
+
+        <!-- 核心：读取其他应用的窗口树并执行点击 -->
+        <service
+            android:name=".service.AdCalmAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- 通过通知栏取消广告触发的下载 -->
+        <service
+            android:name=".service.DownloadNotificationListener"
+            android:exported="true"
+            android:label="@string/notification_listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Shizuku 的回调通道。没装 Shizuku 时这个 provider 不会被触发 -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <!--
+          摘掉 ML Kit 自带的遥测子系统（2026-10-05）。
+
+          起因是量耗电时抓到的：电池统计里本应用挂着
+          `...datatransport...JobInfoSchedulerService` 的 **long-wake 任务**，
+          alarm 列表里也有对应条目——那是 ML Kit 的分析上报，会周期性唤醒、联网。
+          而 OCR 用的是**本地模型**，跟它没有关系。
+
+          摘掉三个组件对识别零影响，换来的是"后台不再有周期性唤醒"。
+          这是"几乎不耗电"这条卖点里最实的一块，也是唯一一处**我们主动放弃的能力为零**的优化。
+        -->
+        <service
+            android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
+            tools:node="remove" />
+        <service
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService"
+            tools:node="remove" />
+        <receiver
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"
+            tools:node="remove" />
+
+    </application>
+
+</manifest>

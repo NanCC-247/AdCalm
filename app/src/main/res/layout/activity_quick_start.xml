@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  极简教程。只有两步，因为只有这两步是「不做就一个广告也关不掉」的：
+  无障碍服务是唯一的眼睛和手指，选择应用决定它管哪些 App。
+  其余权限都只是让个别功能降级，放在「更多权限」里，不拦人。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/calm_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:paddingHorizontal="12dp"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="10dp"
+            android:src="@drawable/ic_calm_back"
+            android:contentDescription="返回" />
+
+        <TextView
+            style="@style/Calm.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="两步开启"
+            android:textSize="20sp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="24dp">
+
+            <TextView
+                style="@style/Calm.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="做完下面两步，打开应用时的广告就会被自动关掉。其余权限都不是必需的。"
+                android:textColor="@color/calm_text_secondary" />
+
+            <!-- ① 无障碍服务 -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Calm.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/Calm.Title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="① 开启无障碍服务"
+                            android:textSize="17sp" />
+
+                        <TextView
+                            style="@style/Calm.Caption"
+                            android:id="@+id/tvStep1State"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/Calm.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="本工具靠它读屏幕上的按钮。不开的话，一个广告也关不掉。" />
+
+                    <com.google.android.material.button.MaterialButton
+                        style="@style/Calm.PrimaryButton"
+                        android:id="@+id/btnStep1"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="14dp"
+                        android:text="去开启" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ② 选择应用 -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Calm.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/Calm.Title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="② 选择要处理的应用"
+                            android:textSize="17sp" />
+
+                        <TextView
+                            style="@style/Calm.Caption"
+                            android:id="@+id/tvStep2State"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/Calm.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="只有勾选过的应用才会被介入，其余完全不看。建议直接一键挑，再按需增删。" />
+
+                    <com.google.android.material.button.MaterialButton
+                        style="@style/Calm.PrimaryButton"
+                        android:id="@+id/btnStep2Auto"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="14dp"
+                        android:text="广告软件更新" />
+
+                    <com.google.android.material.button.MaterialButton
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:id="@+id/btnStep2Manual"
+                        android:layout_width="match_parent"
+                        android:layout_height="46dp"
+                        android:text="或者自己挑"
+                        android:textColor="@color/calm_primary_dark"
+                        android:textAllCaps="false" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                style="@style/Calm.Body"
+                android:id="@+id/tvDone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:gravity="center"
+                android:text=""
+                android:textColor="@color/calm_primary_dark" />
+
+            <!--
+              「接下来」：两步做完之后去哪儿配剩下的权限。
+              入口是首页那张「权限配置」卡片，而它在首屏之下——不领着走，没人会往下滑。
+              所以这里的按钮不是"直达向导"的捷径，而是把人带回首页、滚到卡片跟前。
+            -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Calm.Card"
+                android:id="@+id/cardNext"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:visibility="gone">
+
+                <!-- 整张卡片可点：按钮有时会被挤到折叠线以下（2026-10-05 实测，卡片底边
+                     正好压在屏幕底），只留按钮的话用户就只剩"按返回"这一条路了。 -->
+                <LinearLayout
+                    android:id="@+id/rowNext"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/Calm.Title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="接下来：其余权限"
+                            android:textSize="17sp" />
+
+                        <ImageView
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:src="@drawable/ic_calm_chevron"
+                            android:contentDescription="@null" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/Calm.Caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="强停、下载拦截、保活这几项不配也能用，只是那几项降级。\n入口在首页：往下滑，看到「权限配置」点进去。" />
+
+                    <com.google.android.material.button.MaterialButton
+                        style="@style/Calm.PrimaryButton"
+                        android:id="@+id/btnGoSetup"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="12dp"
+                        android:text="去首页配置" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!--
+              其他权限。上面两步是「不做就关不掉广告」的，这里都不是必需的——
+              但**要露出来**：只显示两行会让人以为别的都不用管，
+              而 Shizuku 恰恰是最值得装的那个（强停不再闪设置页、能删应用商店私有目录里的安装包）。
+            -->
+            <TextView
+                style="@style/SectionTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="26dp"
+                android:text="其他权限（可选）" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Calm.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="18dp"
+                    android:paddingVertical="4dp">
+
+                    <LinearLayout android:id="@+id/rowShizuku" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="60dp" android:gravity="center_vertical" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+                        <TextView style="@style/Calm.Body" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Shizuku" android:textColor="@color/calm_text" />
+                        <TextView style="@style/Calm.Caption" android:id="@+id/tvShizukuState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" />
+                        <ImageView android:layout_width="18dp" android:layout_height="18dp" android:layout_marginStart="8dp" android:src="@drawable/ic_calm_chevron" android:contentDescription="@null" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/calm_outline" />
+
+                    <LinearLayout android:id="@+id/rowUsage" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="60dp" android:gravity="center_vertical" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+                        <TextView style="@style/Calm.Body" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="使用情况访问" android:textColor="@color/calm_text" />
+                        <TextView style="@style/Calm.Caption" android:id="@+id/tvUsageState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" />
+                        <ImageView android:layout_width="18dp" android:layout_height="18dp" android:layout_marginStart="8dp" android:src="@drawable/ic_calm_chevron" android:contentDescription="@null" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/calm_outline" />
+
+                    <LinearLayout android:id="@+id/rowNotifications" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="60dp" android:gravity="center_vertical" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+                        <TextView style="@style/Calm.Body" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="通知使用权" android:textColor="@color/calm_text" />
+                        <TextView style="@style/Calm.Caption" android:id="@+id/tvNotificationState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" />
+                        <ImageView android:layout_width="18dp" android:layout_height="18dp" android:layout_marginStart="8dp" android:src="@drawable/ic_calm_chevron" android:contentDescription="@null" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/calm_outline" />
+
+                    <LinearLayout android:id="@+id/rowAllFiles" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="60dp" android:gravity="center_vertical" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+                        <TextView style="@style/Calm.Body" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="所有文件访问" android:textColor="@color/calm_text" />
+                        <TextView style="@style/Calm.Caption" android:id="@+id/tvAllFilesState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" />
+                        <ImageView android:layout_width="18dp" android:layout_height="18dp" android:layout_marginStart="8dp" android:src="@drawable/ic_calm_chevron" android:contentDescription="@null" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/calm_outline" />
+
+                    <LinearLayout android:id="@+id/rowBattery" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="60dp" android:gravity="center_vertical" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+                        <TextView style="@style/Calm.Body" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="电池优化白名单" android:textColor="@color/calm_text" />
+                        <TextView style="@style/Calm.Caption" android:id="@+id/tvBatteryState" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" />
+                        <ImageView android:layout_width="18dp" android:layout_height="18dp" android:layout_marginStart="8dp" android:src="@drawable/ic_calm_chevron" android:contentDescription="@null" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

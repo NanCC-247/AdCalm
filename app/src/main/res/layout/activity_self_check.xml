@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/calm_background">
+<LinearLayout android:layout_width="match_parent" android:layout_height="64dp" android:paddingHorizontal="12dp" android:gravity="center_vertical">
+<ImageButton android:id="@+id/btnBack" android:layout_width="48dp" android:layout_height="48dp" android:background="?attr/selectableItemBackgroundBorderless" android:padding="12dp" android:src="@drawable/ic_calm_back" android:contentDescription="返回" />
+<TextView style="@style/Calm.Title" android:layout_width="0dp" android:layout_height="wrap_content" android:text="能力自检" android:textSize="22sp" android:layout_weight="1" android:layout_marginStart="8dp" />
+</LinearLayout>
+<ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="24dp" android:paddingBottom="16dp">
+<TextView style="@style/Calm.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="逐项试一遍这台机器上的能力，每一项给出结论和原始证据。换设备时先跑一次这个——不通的那几项，在界面上看起来和正常完全一样。" android:layout_marginBottom="16dp" android:padding="18dp" android:background="@drawable/bg_calm_banner" android:lineSpacingExtra="5dp" />
+<com.google.android.material.card.MaterialCardView style="@style/Calm.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="0dp"><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+<TextView style="@style/Calm.Body" android:id="@+id/tvReport" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="正在检查…" android:textSize="13sp" android:lineSpacingExtra="4dp" android:textIsSelectable="true" android:typeface="monospace" />
+</LinearLayout></com.google.android.material.card.MaterialCardView>
+</LinearLayout></ScrollView>
+<!-- 按钮固定在滚动区之外：手势自检要按「复制报告」的屏幕坐标注入一次真实点击，
+     它被报告顶出可视区的话，那一项就永远是"没响应"——自检反而会误报。 -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="24dp" android:paddingBottom="24dp">
+<com.google.android.material.button.MaterialButton style="@style/Calm.PrimaryButton" android:id="@+id/btnCopyReport" android:layout_width="match_parent" android:layout_height="56dp" android:text="复制报告" />
+<com.google.android.material.button.MaterialButton style="@style/Calm.SecondaryButton" android:id="@+id/btnRerun" android:layout_width="match_parent" android:layout_height="48dp" android:text="重新检测" android:layout_marginTop="10dp" />
+<TextView style="@style/Calm.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="检测中屏幕会短暂跳到系统的应用信息页，属正常" android:gravity="center" android:layout_marginTop="8dp" />
+</LinearLayout>
+</LinearLayout>

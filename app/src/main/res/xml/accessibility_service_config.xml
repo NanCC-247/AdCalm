@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    notificationTimeout = 同一类型事件的投递节流（毫秒）。
+
+    2026-10-05 从 100 放到 200：稳态测量发现**大头不是扫描、而是"每个事件都过一次回调"**——
+    一个持续刷新的目标应用 60 秒里烧掉 2.29 秒 CPU，而把慢扫间隔从 1 秒放宽到 3 秒只降了 27%。
+    这里放宽之后，事件回调次数直接减半。
+
+    代价：开屏窗口期内最快也是 200ms 一次（原来是 100ms），端到端延迟从实测的 200~240ms
+    变成 250~300ms 量级——同类工具的公开口径本来就是"约 0.3 秒"，这个量级可以接受。
+-->
+<!--
+  accessibilityEventTypes：**只订阅窗口切换，不订阅内容变化**（2026-10-05 改）。
+
+  原来两类都订阅，扫描是被事件"叫"起来的——界面越活跃（列表滚动、动画、计数器），
+  就被叫得越勤。量过：把一个持续刷新的目标应用放前台，60 秒烧掉 2.41 秒 CPU
+  （≈单核 4%），其中"每个事件过一次回调"占相当一部分，而真正的大头是每次回调
+  可能引发的全树遍历。
+
+  现在扫描改由服务自己排期（`AdCalmAccessibilityService` 里的扫描节拍器），
+  频率完全可控；窗口切换仍然实时触发一次扫描，开屏那 8 秒也仍是 100ms 一拍。
+  顺带补上一个覆盖漏洞：以前"没有事件就不扫"，**静止画面上已经存在的广告永远扫不到**。
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:canTakeScreenshot="true"
+    android:description="@string/accessibility_service_description"
+    android:notificationTimeout="200"
+    android:summary="@string/accessibility_service_summary" />

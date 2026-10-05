@@ -1,0 +1,34 @@
+# 编辑器统一配置。
+#
+# 换行符不在这里管——那是 .gitattributes 的职责（而且它必须管，因为 gradlew
+# 一旦带 CRLF 进仓库，别人在 Linux/macOS 上就报 bad interpreter）。
+# 这里管的是缩进、编码、行尾空白这些「各人编辑器默认值不同」的东西。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{kt,kts}]
+# 跟着 Kotlin 官方风格：4 空格，不用 tab
+indent_size = 4
+
+[*.{xml,json,properties}]
+indent_size = 4
+
+[*.{yml,yaml}]
+# GitHub Actions 的缩进层级多，2 空格更易读
+indent_size = 2
+
+[*.md]
+# Markdown 里行尾两个空格表示强制换行，删掉会改变渲染结果
+trim_trailing_whitespace = false
+
+[*.bat]
+# Windows 批处理反过来必须是 CRLF，和 .gitattributes 保持一致
+end_of_line = crlf

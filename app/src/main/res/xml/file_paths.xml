@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 观察日志导出到这里，可通过 adb pull 或分享取走 -->
+    <external-files-path name="observer" path="." />
+    <files-path name="internal" path="." />
+    <!-- 下载的 Shizuku 安装包放在缓存里，装完即删 -->
+    <cache-path name="apk" path="." />
+</paths>

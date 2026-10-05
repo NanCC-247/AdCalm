@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/calm_background" android:orientation="vertical">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" style="@style/Calm.Toolbar"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+        app:navigationContentDescription="返回" app:navigationIcon="@drawable/ic_calm_back" app:title="隔离区" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="20dp" android:layout_marginEnd="20dp"
+        android:layout_marginTop="12dp" android:background="@drawable/bg_calm_card" android:orientation="vertical" android:padding="20dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_calm_icon"
+                android:importantForAccessibility="no" android:padding="12dp" android:src="@drawable/ic_calm_quarantine" app:tint="@color/calm_primary_dark" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:id="@+id/tvSummary" style="@style/Calm.Title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="正在读取文件" android:textSize="22sp" />
+                <TextView android:id="@+id/tvTotalSize" style="@style/Calm.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" />
+            </LinearLayout>
+        </LinearLayout>
+        <TextView android:id="@+id/tvRetention" style="@style/Calm.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            android:lineSpacingExtra="3dp" android:text="广告安装包会在这里暂存。误判可恢复到原位置；超过保留期后会自动删除。" android:textColor="@color/calm_text_secondary" android:textSize="13sp" />
+    </LinearLayout>
+    <TextView android:id="@+id/tvListLabel" style="@style/Calm.Caption" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingStart="24dp" android:paddingEnd="24dp" android:paddingTop="20dp" android:paddingBottom="10dp" android:text="暂存文件" android:textStyle="bold" />
+    <LinearLayout android:id="@+id/emptyState" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:gravity="center" android:orientation="vertical" android:padding="32dp" android:visibility="gone">
+        <ImageView android:layout_width="72dp" android:layout_height="72dp" android:background="@drawable/bg_calm_icon"
+            android:importantForAccessibility="no" android:padding="21dp" android:src="@drawable/ic_calm_check" app:tint="@color/calm_primary" />
+        <TextView android:id="@+id/tvEmpty" style="@style/Calm.Title" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="20dp" android:gravity="center" android:text="隔离区很干净" android:textSize="20sp" />
+        <TextView style="@style/Calm.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="9dp"
+            android:gravity="center" android:lineSpacingExtra="4dp" android:text="暂无暂存文件。\n被拦截的广告安装包会显示在这里。" android:textColor="@color/calm_text_secondary" />
+    </LinearLayout>
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvFiles" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:clipToPadding="false" android:paddingStart="20dp" android:paddingEnd="20dp" android:paddingBottom="20dp" android:scrollbars="none" />
+</LinearLayout>

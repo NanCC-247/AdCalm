@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Calm.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">@color/calm_surface</item>
+        <item name="cardCornerRadius">22dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/calm_outline</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="contentPadding">0dp</item>
+    </style>
+    <style name="Calm.Title" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/calm_text</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+    <style name="Calm.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/calm_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+    <style name="Calm.Caption" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textColor">@color/calm_text_secondary</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+    <style name="Calm.PrimaryButton" parent="Widget.Material3.Button">
+        <item name="android:minHeight">54dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/calm_primary_button_text</item>
+        <item name="backgroundTint">@color/calm_primary_button_colors</item>
+        <item name="cornerRadius">28dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="iconTint">@color/calm_surface</item>
+        <item name="rippleColor">#30FFFFFF</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+    <style name="Calm.SecondaryButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/calm_primary_dark</item>
+        <item name="backgroundTint">@color/calm_surface</item>
+        <item name="strokeColor">@color/calm_outline</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="iconTint">@color/calm_primary_dark</item>
+        <item name="rippleColor">@color/calm_ripple</item>
+    </style>
+    <style name="Calm.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@color/calm_background</item>
+        <item name="titleTextColor">@color/calm_text</item>
+        <item name="subtitleTextColor">@color/calm_text_secondary</item>
+        <item name="titleTextAppearance">@style/Calm.Title</item>
+        <item name="navigationIconTint">@color/calm_text</item>
+        <item name="android:elevation">0dp</item>
+    </style>
+    <style name="Calm.NavigationLabel" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+    <style name="Calm.NavigationIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:height">32dp</item>
+        <item name="android:width">58dp</item>
+        <item name="android:color">@color/calm_mint</item>
+    </style>
+    <style name="Calm.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">@color/calm_surface</item>
+        <item name="android:elevation">0dp</item>
+        <item name="itemIconSize">24dp</item>
+        <item name="itemIconTint">@color/calm_navigation_colors</item>
+        <item name="itemTextColor">@color/calm_navigation_colors</item>
+        <item name="itemTextAppearanceActive">@style/Calm.NavigationLabel</item>
+        <item name="itemTextAppearanceInactive">@style/Calm.NavigationLabel</item>
+        <item name="itemActiveIndicatorStyle">@style/Calm.NavigationIndicator</item>
+        <item name="itemRippleColor">@color/calm_ripple</item>
+        <item name="labelVisibilityMode">labeled</item>
+    </style>
+    <style name="Calm.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="thumbTint">@color/calm_switch_thumb</item>
+        <item name="trackTint">@color/calm_switch_track</item>
+        <item name="android:textColor">@color/calm_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+    <style name="Calm.CheckBox" parent="Widget.Material3.CompoundButton.CheckBox">
+        <item name="android:textColor">@color/calm_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="buttonTint">@color/calm_control_colors</item>
+    </style>
+    <style name="Calm.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/calm_primary_dark</item>
+        <item name="colorSurface">@color/calm_surface</item>
+        <item name="colorOnSurface">@color/calm_text</item>
+        <item name="colorOnSurfaceVariant">@color/calm_text_secondary</item>
+        <item name="android:colorAccent">@color/calm_primary_dark</item>
+        <!-- 圆角/描边跟 @style/Calm.Card 对齐。默认的 Material3 弹窗比卡片更方、还带投影，
+             放在一起看得出是两套东西。 -->
+        <item name="android:background">@drawable/bg_calm_dialog</item>
+        <item name="shapeAppearanceMediumComponent">@style/Calm.Shape.Dialog</item>
+    </style>
+    <!-- 弹窗的圆角。数值和 Calm.Card 的 cardCornerRadius 保持一致（22dp）。 -->
+    <style name="Calm.Shape.Dialog" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">22dp</item>
+    </style>
+    <style name="SectionTitle" parent="Calm.Body">
+        <item name="android:textStyle">bold</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">24dp</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+    <style name="StatusRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:minHeight">54dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+    </style>
+    <style name="StatusLabel" parent="Calm.Body">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_height">wrap_content</item>
+    </style>
+    <style name="StatusValue" parent="Calm.Body">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/calm_primary_dark</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+</resources>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  点安装包那一行时弹的内容。
+
+  用自定义视图而不是 AlertDialog.setItems：那个和 setMessage 放在同一个弹窗里时
+  列表渲染不出来（2026-10-04 真机上试过），而路径本身就是要展示的主要信息。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
+    android:paddingStart="24dp" android:paddingEnd="24dp" android:paddingTop="8dp" android:paddingBottom="8dp">
+
+    <TextView android:id="@+id/tvPath" style="@style/Calm.Body" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:lineSpacingExtra="3dp" android:textIsSelectable="true"
+        android:textSize="13sp" />
+
+    <TextView android:id="@+id/tvNote" style="@style/Calm.Caption" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_marginTop="14dp" android:lineSpacingExtra="3dp" android:textSize="12sp" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="18dp" android:orientation="horizontal">
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnCopy" style="@style/Calm.SecondaryButton"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:minHeight="48dp"
+            android:text="复制路径" android:textSize="14sp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnOpenApp" style="@style/Calm.PrimaryButton"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1"
+            android:minHeight="48dp" android:text="应用信息" android:textSize="14sp" />
+    </LinearLayout>
+</LinearLayout>
