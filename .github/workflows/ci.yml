@@ -26,16 +26,32 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: 安装 Android SDK
-        uses: android-actions/setup-android@v3
-
-      # setup-android 只保证 SDK 目录和 platform-tools 在，**不保证装了这个项目要的那几个
-      # 包**（它默认装的是"当时最新"，而本项目 compileSdk = 35 是钉死的）。
-      # 少了这一行，跑在版本更新的 runner 上时会报 "Failed to find target with hash string
-      # 'android-35'"——而 CI 红了第一次之后，很容易被当成"项目本来就编不过"。
+      # ⚠ 这里**故意不用 `android-actions/setup-android`**。
+      #
+      # 它内部会执行 `sdkmanager tools`，而 `tools` 这个包早已从 SDK 仓库下架，
+      # 于是这个 action 自己就报 `Failed to find package 'tools'` 退出 1 ——
+      # **后面的测试、Lint、打包一步都不会跑**。2026-10-05 第一次推送时就是这么死的，
+      # 连着三次全红，而日志里一个字的代码错误都没有。
+      #
+      # GitHub 的 ubuntu 镜像**本来就预装了 Android SDK 和 cmdline-tools**，
+      # 所以直接用它的 sdkmanager 装我们要的那几个包就行，少一个会坏的依赖。
       # 版本号跟着 app/build.gradle.kts 里的 compileSdk 走，改那里时记得改这里。
       - name: 安装本项目要的 SDK 平台与构建工具
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        run: |
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+            SDKMANAGER="$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
+          fi
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "::error::找不到 sdkmanager，下面把 SDK 目录列出来便于排查"
+            ls -R "${ANDROID_HOME:-/usr/local/lib/android/sdk}" | head -60
+            exit 1
+          fi
+          echo "用 $SDKMANAGER"
+          # 同意许可。这一步返回非 0 是正常的（它把没答完的许可也报出来），忽略掉。
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
       - name: 缓存 Gradle
         uses: actions/cache@v4
