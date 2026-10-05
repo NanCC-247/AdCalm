@@ -8,7 +8,7 @@
 
 薄荷风格的 Android 广告辅助工具。通过无障碍识别与离线 OCR，尝试跳过开屏广告、关闭广告弹窗；支持按应用选择、误跳回退与下载隔离恢复。
 
-[源码版本](https://github.com/NanCC-247/AdCalm/releases) · [使用指南](docs/guides/使用指南.md) · [报告问题](https://github.com/NanCC-247/AdCalm/issues) · [更新记录](CHANGELOG.md)
+[下载试用](https://github.com/NanCC-247/AdCalm/actions/workflows/ci.yml) · [源码版本](https://github.com/NanCC-247/AdCalm/releases) · [使用指南](docs/guides/使用指南.md) · [报告问题](https://github.com/NanCC-247/AdCalm/issues) · [更新记录](CHANGELOG.md)
 
 </div>
 
