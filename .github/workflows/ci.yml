@@ -74,6 +74,26 @@ jobs:
       - name: 装配 Debug APK
         run: ./gradlew --no-daemon assembleDebug
 
+      # 出一个可下载的调试包。
+      #
+      # **为什么是 artifact，而不是挂到 Release 资产上**——这是刻意的取舍：
+      # 仓库的红线是"只发布源码、不发布可直接安装的成品 APK"（见 README 的
+      # 「分享与法律风险」）。artifact 和 Release 资产的区别是实质性的：
+      # 它是一次性的构建产物，**必须登录 GitHub 才能下载**，而且到期自动删除；
+      # 仓库和 Release 里**始终没有任何 APK 文件**，那条红线的字面和精神都没破。
+      #
+      # 想自己装的开发者从 Actions 页面拿这个就够了；"分发成品"那个动作没有发生。
+      # 真要把它改成 Release 资产，先回去读一遍 README 那一节。
+      - name: 上传调试包
+        uses: actions/upload-artifact@v4
+        with:
+          name: adcalm-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          # 比默认的 90 天短：它是个方便开发者试用的构建产物，不是长期分发渠道。
+          retention-days: 30
+          # 打不出包时让这一步直接失败，别静默产出一个空的 artifact。
+          if-no-files-found: error
+
       - name: 上传测试报告
         if: always()
         uses: actions/upload-artifact@v4

@@ -239,6 +239,11 @@ APK 约 **20MB**，其中 OCR 的 native 库占大头（`libmlkit_google_ocr_pip
 
 ## 构建
 
+**不想自己配工具链的话**：每次推送到 `main`，GitHub Actions 都会跑一遍测试并产出一个调试包。
+在仓库的 **Actions** 页选最近一次成功的运行，下载里面的 `adcalm-debug-apk` 即可——
+**需要登录 GitHub 才能下**，而且它有有效期（构建产物，到期自动删）。
+它只是省去你配环境的一步；**仓库和 Releases 里始终没有任何 APK 文件**（原因见「分享与法律风险」）。
+
 ```bash
 cd <项目目录>
 ./build.sh                      # 编译 Debug APK
