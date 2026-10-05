@@ -1,78 +1,74 @@
-name: 报告问题
-description: 广告没被跳过、点错了地方、或者其他功能不对
-labels: [ bug ]
+name: 问题反馈
+description: 反馈识别、误点、回退、下载处置或界面问题
+labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        先说一句：**这个项目主要在真机上靠日志迭代**，所以下面的信息比描述本身更有用。
-        没有日志的话，多数问题只能靠猜。
-
-  - type: checkboxes
-    id: preflight
-    attributes:
-      label: 先确认这几件事
-      options:
-        - label: 我已经看过 README 的「已知限制」一节
-          required: true
-        - label: 出问题的 App **在「拦截范围」里**（没勾选的应用本工具完全不介入，连日志都不写）
-          required: true
-
+        请描述可复现的场景。日志或截图有助于排查，但不是提交问题的前提。
+        分享前请遮盖账号、聊天内容、通知、个人路径等私人信息。
   - type: dropdown
     id: kind
     attributes:
       label: 问题类型
       options:
-        - 广告没被跳过（什么都没发生）
-        - 点错了地方（点了非关闭按钮）
-        - 误跳回退 / 强停不对
-        - 下载拦截 / 隔离区不对
-        - 界面 / 配置问题
-        - 其他
+        - 广告未被跳过
+        - 点击了不该点击的位置
+        - 误跳回退或强停异常
+        - 下载隔离、恢复或手动清理异常
+        - 权限、后台运行或能力自检异常
+        - 界面或其他问题
     validations:
       required: true
-
-  - type: textarea
-    id: what
-    attributes:
-      label: 发生了什么
-      description: 你期待什么、实际发生了什么。越具体越好。
-    validations:
-      required: true
-
   - type: input
-    id: app
+    id: version
     attributes:
-      label: 出问题的应用
-      description: 应用名 + 包名（包名可以在「选择要处理的 App」里看到）
-      placeholder: 例如：某个浏览器 / com.example.browser
+      label: AdCalm 版本
+      placeholder: 例如 v0.1.0；如为自行构建，也可提供提交号
     validations:
       required: true
-
   - type: input
     id: device
     attributes:
       label: 设备与系统
-      placeholder: 例如：Pixel 7 / Android 14
+      placeholder: 机型 / Android 版本 / 厂商系统版本
     validations:
       required: true
-
-  - type: textarea
-    id: log
+  - type: input
+    id: app
     attributes:
-      label: 观察日志片段
-      description: |
-        开「诊断模式」复现一次，然后应用内「导出日志」，把相关的那几行贴进来。
-        最有用的是 `decision` 为 `WOULD_CLICK` / `CLICKED` / `SUSPECT_ONLY` / `OUT_OF_SCOPE` 的行。
-        **贴之前请自行去掉不想公开的包名。**
-      render: json
+      label: 涉及的应用
+      description: 提供应用名称与版本；包名可选。
     validations:
       required: false
-
-  - type: checkboxes
+  - type: textarea
+    id: what
+    attributes:
+      label: 复现步骤与实际结果
+      description: 说明操作步骤、期待的结果与实际发生的情况。
+    validations:
+      required: true
+  - type: dropdown
     id: mode
     attributes:
       label: 复现时的模式
       options:
-        - label: 自动点击模式（不是观察模式）
-        - label: 开着诊断模式
+        - 自动模式
+        - 纯观察模式
+        - 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: 相关状态
+      description: 如有必要，说明是否已选择该应用、无障碍是否运行、Shizuku 与能力自检结果。
+    validations:
+      required: false
+  - type: textarea
+    id: log
+    attributes:
+      label: 日志或截图（可选）
+      description: 只提交相关且已脱敏的片段；需要诊断时短时开启，复现后关闭。
+    validations:
+      required: false
