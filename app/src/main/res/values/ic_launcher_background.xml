@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Median RGB of the approved icon’s four opaque inner corners. -->
-    <color name="ic_launcher_background">#27A4B7</color>
+    <!-- Median RGB sampled from the approved icon’s opaque outer rim. -->
+    <color name="ic_launcher_background">#3EC2CD</color>
 </resources>

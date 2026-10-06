@@ -7,6 +7,7 @@ body:
       value: |
         欢迎围绕减少打扰、操作可控、兼容性与清晰反馈提出建议。
         当前功能和边界见 README；无需参考本地开发记录。
+        请描述正常使用场景及用户控制方式；不以特定平台全覆盖或绕过其限制为目标。
   - type: textarea
     id: problem
     attributes:

@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  极简教程。只有两步，因为只有这两步是「不做就一个广告也关不掉」的：
-  无障碍服务是唯一的眼睛和手指，选择应用决定它管哪些 App。
-  其余权限都只是让个别功能降级，放在「更多权限」里，不拦人。
--->
+
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -30,7 +26,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
-            android:text="两步开启"
+            android:text="两步准备"
             android:textSize="20sp" />
     </LinearLayout>
 
@@ -52,10 +48,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="做完下面两步，打开应用时的广告就会被自动关掉。其余权限都不是必需的。"
+                android:text="先选应用，再开启无障碍。初始为观察模式，只记录；确认结果后可在首页开启自动辅助点击。"
                 android:textColor="@color/calm_text_secondary" />
 
-            <!-- ① 无障碍服务 -->
+
             <com.google.android.material.card.MaterialCardView
                 style="@style/Calm.Card"
                 android:layout_width="match_parent"
@@ -95,7 +91,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="本工具靠它读屏幕上的按钮。不开的话，一个广告也关不掉。" />
+                        android:text="用于读取所选应用的页面控件。自动模式可尝试点击明确的广告关闭按钮，识别可能失败或误判。" />
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Calm.PrimaryButton"
@@ -107,7 +103,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ② 选择应用 -->
+
             <com.google.android.material.card.MaterialCardView
                 style="@style/Calm.Card"
                 android:layout_width="match_parent"
@@ -147,7 +143,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="只有勾选过的应用才会被介入，其余完全不看。建议直接一键挑，再按需增删。" />
+                        android:text="只处理你选择的应用。建议先选一两个熟悉的应用观察，避开聊天、支付等敏感页面。" />
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Calm.PrimaryButton"
@@ -155,14 +151,14 @@
                         android:layout_width="match_parent"
                         android:layout_height="50dp"
                         android:layout_marginTop="14dp"
-                        android:text="广告软件更新" />
+                        android:text="查看推荐范围" />
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Widget.Material3.Button.TextButton"
                         android:id="@+id/btnStep2Manual"
                         android:layout_width="match_parent"
                         android:layout_height="46dp"
-                        android:text="或者自己挑"
+                        android:text="手动选择应用"
                         android:textColor="@color/calm_primary_dark"
                         android:textAllCaps="false" />
                 </LinearLayout>
@@ -178,11 +174,7 @@
                 android:text=""
                 android:textColor="@color/calm_primary_dark" />
 
-            <!--
-              「接下来」：两步做完之后去哪儿配剩下的权限。
-              入口是首页那张「权限配置」卡片，而它在首屏之下——不领着走，没人会往下滑。
-              所以这里的按钮不是"直达向导"的捷径，而是把人带回首页、滚到卡片跟前。
-            -->
+
             <com.google.android.material.card.MaterialCardView
                 style="@style/Calm.Card"
                 android:id="@+id/cardNext"
@@ -191,8 +183,7 @@
                 android:layout_marginTop="12dp"
                 android:visibility="gone">
 
-                <!-- 整张卡片可点：按钮有时会被挤到折叠线以下（2026-10-05 实测，卡片底边
-                     正好压在屏幕底），只留按钮的话用户就只剩"按返回"这一条路了。 -->
+
                 <LinearLayout
                     android:id="@+id/rowNext"
                     android:layout_width="match_parent"
@@ -229,7 +220,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="强停、下载拦截、保活这几项不配也能用，只是那几项降级。\n入口在首页：往下滑，看到「权限配置」点进去。" />
+                        android:text="增强功能默认关闭，用到时再授权。\n首页「权限配置」可查看所需权限及影响。" />
 
                     <com.google.android.material.button.MaterialButton
                         style="@style/Calm.PrimaryButton"
@@ -241,11 +232,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!--
-              其他权限。上面两步是「不做就关不掉广告」的，这里都不是必需的——
-              但**要露出来**：只显示两行会让人以为别的都不用管，
-              而 Shizuku 恰恰是最值得装的那个（强停不再闪设置页、能删应用商店私有目录里的安装包）。
-            -->
+
             <TextView
                 style="@style/SectionTitle"
                 android:layout_width="match_parent"

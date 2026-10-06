@@ -98,6 +98,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
     private lateinit var powerManager: PowerManager
 
     /** 最近一次窗口状态变化时记录的 Activity，用于日志标注与规则匹配。 */
+    @Volatile
     private var currentActivity: String? = null
 
     /**
@@ -106,7 +107,12 @@ class AdCalmAccessibilityService : AccessibilityService() {
      * 扫描节拍器靠它判断"这一拍该扫谁"，**不需要**取根节点——那是一次跨进程调用，
      * 而绝大多数拍里前台都不在生效范围。窗口切换仍然会实时推一次事件把它刷新。
      */
+    @Volatile
     private var currentPackage: String? = null
+
+    /** 防止截图期间切到其他应用再切回来后，仅靠同名 Activity 误判为未切换。 */
+    @Volatile
+    private var windowGeneration = 0L
 
     /** 点击冷却。逻辑在 [ClickCooldown] 里，纯类，有单测。 */
     private val clickCooldown = ClickCooldown()
@@ -138,19 +144,13 @@ class AdCalmAccessibilityService : AccessibilityService() {
         // 行为保护名单涉及系统查询，放后台线程加载；加载完成前 canForceStop 一律返回 false
         registry.refreshBehaviorAsync(scope)
 
-        // 下载监控与过期清理原本挂在 GuardForegroundService 上。
+        // 下载监控由同一个长期绑定服务管理；启停始终服从当前开关。
         // 前台服务在 Android 8+ 必须常驻一条通知，而用户明确要求去掉那条通知——
         // 这两件事的职责本来就重叠：无障碍服务同样由系统长期绑定，而且**开机自动拉起**，
         // 比「打开过应用才会启动」的前台服务更可靠。
+        if (::janitor.isInitialized) janitor.stop()
         janitor = DownloadJanitor(this, settings)
-        janitor.start()
-        scope.launch {
-            while (isActive) {
-                delay(PURGE_INTERVAL_MS)
-                runCatching { janitor.purgeExpired() }
-                    .onFailure { Log.w(TAG, "清理隔离区失败", it) }
-            }
-        }
+        janitor.syncWithSettings()
 
         // 扫描节拍器：扫描从"被无障碍事件叫起来"改成"自己排期"（2026-10-05）。
         // 语义、代价、以及为什么值得改，都写在 [tickOnce] 上。
@@ -176,6 +176,14 @@ class AdCalmAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         if (!::settings.isInitialized) return
+        if (!settings.enabled || settings.dryRun || !settings.autoRollback) {
+            sentinel.disarm()
+            DownloadJanitor.clearAdJump()
+        }
+        if (!settings.enabled || settings.dryRun || !settings.autoRollback || !settings.autoForceStop) {
+            neutralizer.reset()
+            pendingReturnTo = null
+        }
         if (!settings.enabled) return
 
         val now = SystemClock.uptimeMillis()
@@ -188,6 +196,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
         // `currentPackage` 还给扫描节拍器用：它按拍问"现在该扫谁"，
         // 走缓存就不必每拍都做一次跨进程的 rootInActiveWindow。
         if (isWindowChange) {
+            windowGeneration++
             currentActivity = event.className?.toString()
             currentPackage = pkg
             foregroundSince = now
@@ -203,12 +212,15 @@ class AdCalmAccessibilityService : AccessibilityService() {
         // 否则它连检查都进不去——见 [Sentinel.shouldRollbackLate]。
         val lateWindowOpen = !sentinelArmed && sentinel.wasArmedRecently(now)
         if (!neutralizer.isActive && !sentinelArmed && !lateWindowOpen &&
-            !settings.isTargeted(pkg) && !settings.debugMode
+            !settings.isTargeted(pkg)
         ) {
             return
         }
 
         // 闸门 1：强停流程进行中，全权交给状态机
+        if (neutralizer.isActive && (!settings.enabled || settings.dryRun || !settings.autoRollback || !settings.autoForceStop)) {
+            neutralizer.reset(); pendingReturnTo = null
+        }
         if (neutralizer.isActive) {
             neutralizer.onEvent(pkg, rootInActiveWindow, now)
             // 刚才是最后一步（点了「确定」，或超时放弃）——那时界面多半还停在
@@ -283,11 +295,8 @@ class AdCalmAccessibilityService : AccessibilityService() {
         // 闸门 3：不处理硬保护的系统组件；不处理生效范围外的应用
         if (registry.isHardProtected(pkg)) return
         val inScope = settings.isTargeted(pkg)
-        // 诊断模式放行生效范围外的包，是为了把它们（以及还没加入名单的应用）的
-        // 节点树也抓进日志——设置项写的就是"记录所有应用的完整界面结构"。
-        // 但**放行"看"不等于放行"动手"**：能不能点击由 inScope 单独决定，
-        // 在 handleWindow 和 runOcr 里各自把关。
-        if (!inScope && !settings.debugMode) return
+        // 诊断也遵守用户选定范围，不读取未选应用的节点树。
+        if (!inScope) return
 
         handleWindow(pkg, rootInActiveWindow, isWindowChange, now, inScope)
     }
@@ -327,11 +336,19 @@ class AdCalmAccessibilityService : AccessibilityService() {
      * 决定"关得掉关不掉"的正是它。
      */
     private suspend fun tickOnce(): Long {
-        if (!settings.enabled) return TICK_IDLE_MS
+        janitor.syncWithSettings()
+        if (!settings.enabled || settings.dryRun || !settings.autoRollback) {
+            sentinel.disarm()
+            DownloadJanitor.clearAdJump()
+        }
 
         // 强停流程进行中：那条路**必须**拿根节点（状态机要在设置页/确认弹窗上找按钮），
         // 而且它也要靠这一拍推进——这台 ROM 的确认弹窗不一定产生我们订阅得到的事件，
         // 光等事件会卡在设置页（2026-10-05 踩过一次同类坑：入口闸门把事件吃掉）。
+        if (neutralizer.isActive && (!settings.enabled || settings.dryRun || !settings.autoRollback || !settings.autoForceStop)) {
+            neutralizer.reset(); pendingReturnTo = null
+        }
+        if (!settings.enabled) return TICK_IDLE_MS
         if (neutralizer.isActive) {
             val now = SystemClock.uptimeMillis()
             val root = rootInActiveWindow
@@ -361,7 +378,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
         if (registry.isHardProtected(pkg)) return TICK_IDLE_MS
 
         val inScope = settings.isTargeted(pkg)
-        if (!inScope && !settings.debugMode) return TICK_IDLE_MS
+        if (!inScope) return TICK_IDLE_MS
 
         val now = SystemClock.uptimeMillis()
         // 取根节点也是一次跨进程调用。2026-10-05 量过：扫描本身只有 4ms，
@@ -506,21 +523,21 @@ class AdCalmAccessibilityService : AccessibilityService() {
 
         if (best != null && best.verdict == Verdict.CLICK) {
             if (!inScope) {
-                // 这是诊断模式放行进来的、不在生效范围内的应用。只记不吃：
-                // 打分照记（校准有价值），但**一根手指都不许动**。
+                // 保留动作前的范围检查；调用方只允许所选应用进入扫描。
                 //
                 // 少了这一层就是 2026-10-03 真机上发生的事——诊断模式一开，
                 // 生效范围过滤被整体绕过，服务对着系统设置的搜索框
                 // （android:id/search_close_btn 得 65 分）和输入法的「关闭」键
                 // （OCR 得 80 分）连着点，用户当时正在设置里搜「无线」。
                 decision = DECISION_OUT_OF_SCOPE
-                Log.i(TAG, "生效范围外，只记不点 $pkg：${best.describe()}")
+                Log.i(TAG, "生效范围外，只记不点 $pkg：${best.score}分")
             } else {
                 // 分数够了，还要过最后一道闸门：有些候选的分数全部来自"它待在一个角落里"，
                 // 而任何界面都有控件待在角落里。见 ClickGate。
                 val gate = ClickGate.evaluate(
                     hasStrongEvidence = best.hasStrongEvidence,
                     inputMethodActive = isInputMethodActive(),
+                    snapshot = best.snapshot,
                 )
 
                 if (gate != ClickGate.Reason.OK) {
@@ -534,7 +551,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
                         ClickGate.Reason.INPUT_METHOD -> DECISION_HELD_INPUT_METHOD
                         else -> DECISION_HELD_NO_EVIDENCE
                     }
-                    Log.i(TAG, "闸门拦下 $pkg（${gate.name}）：${best.describe()}")
+                    Log.i(TAG, "闸门拦下 $pkg（${gate.name}）：${best.score}分")
                 } else if (settings.dryRun) {
                     // **纯观察：只记，不动手——也不武装哨兵。**
                     //
@@ -547,25 +564,22 @@ class AdCalmAccessibilityService : AccessibilityService() {
                     // "只记录、但保留误跳保护"是另一件事，要用**独立开关**表达，
                     // 不该挤在同一个名字底下：一个布尔开关同时管两件事，正是这个项目
                     // 踩过的那类坑（见第七节「一个布尔开关同时管两件事」）。
-                    Log.i(TAG, "[观察] $pkg 达标候选：${best.describe()}")
+                    Log.i(TAG, "[观察] $pkg 达标候选：${best.score}分")
                 } else {
-                    // 只要判定出"这就是广告"，就武装哨兵——不依赖点击是否真的执行了。
-                    // 冷却中和点击失败这两种情况下我们没点，但广告依然可能
-                    // 因为用户误触或摇一摇而跳转，同样需要能回退。
-                    armSentinel(pkg, now)
-
+                    // 只有成功发起辅助点击且用户开启误跳回退时，才会武装哨兵。
                     if (isCoolingDown(pkg, now, best.snapshot.bounds)) {
                         decision = DECISION_COOLDOWN
                     } else {
-                        val result = clickExecutor.click(root, best.path, best.snapshot.bounds, screen)
+                        val result = clickExecutor.click(root, best.path, best.snapshot.bounds, screen, expected = best.snapshot)
                         if (result.succeeded) {
+                            armSentinel(pkg, now)
                             clickCooldown.record(pkg, now, best.snapshot.bounds)
                             clickMethod = result.method.name
                             decision = DECISION_CLICKED
-                            Log.i(TAG, "已点击 $pkg：${best.describe()} via ${result.method}")
+                            Log.i(TAG, "已点击 $pkg：${best.score}分 via ${result.method}")
                         } else {
                             decision = DECISION_CLICK_FAILED
-                            Log.w(TAG, "点击失败 $pkg：${best.describe()}")
+                            Log.w(TAG, "点击失败 $pkg：${best.score}分")
                         }
                     }
                 }
@@ -687,6 +701,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
      * （来历记在 [Sentinel.OBSERVE_WINDOW_MS]）。
      */
     private fun armSentinel(pkg: String, now: Long) {
+        if (!settings.enabled || settings.dryRun || !settings.autoRollback) return
         sentinel.arm(pkg, now)
         // 武装本身要留痕。"为什么没保护我" 这个问题如果没有这一条，
         // 事后只能看到"有候选、没回退"，分不清是没武装还是准入拒绝。
@@ -700,6 +715,11 @@ class AdCalmAccessibilityService : AccessibilityService() {
      * 即"不在保护名单、且看起来像广告目标"——用户自己常用的软件不会到这里。
      */
     private fun rollback(jumpedTo: String, now: Long) {
+        if (!settings.enabled || settings.dryRun || !settings.autoRollback) {
+            sentinel.disarm()
+            DownloadJanitor.clearAdJump()
+            return
+        }
         // 送用户回去要用的"原应用"必须先取走——disarm 之后哨兵里就没有它了
         val origin = sentinel.originPackage()
         sentinel.disarm()
@@ -730,9 +750,12 @@ class AdCalmAccessibilityService : AccessibilityService() {
         scope.launch {
             // 1. 先把界面从广告页退出来。很多广告会吃掉第一次返回，所以按两次
             repeat(BACK_ATTEMPTS) {
+                if (!settings.enabled || settings.dryRun || !settings.autoRollback) return@launch
                 performGlobalAction(GLOBAL_ACTION_BACK)
                 delay(BACK_INTERVAL_MS)
             }
+
+            if (!settings.enabled || settings.dryRun || !settings.autoRollback) return@launch
 
             // 2. 能不能直接把对方清掉，还要单独过一道**强停**准入。
             //
@@ -740,7 +763,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
             //    [cn.adcalm.guard.core.ProtectionRegistry.canRollback]）。
             //    松出来的那部分只允许"按返回 + 送回原应用"，**不允许杀别人**——
             //    这条边界不能糊。
-            val canStop = settings.autoForceStop && registry.canForceStop(jumpedTo)
+            val canStop = settings.enabled && !settings.dryRun && settings.autoForceStop && registry.canForceStop(jumpedTo)
             if (!canStop) {
                 Log.i(TAG, "只回退不强停 $jumpedTo（自动强停开关=${settings.autoForceStop}）")
                 // 只把界面退出来，再送用户回原应用
@@ -802,6 +825,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
      *               这时什么都不做——宁可留在原处，也不要猜一个应用拉起来
      */
     private fun returnToOrigin(origin: String?) {
+        if (!settings.enabled || settings.dryRun || !settings.autoRollback) return
         if (!settings.returnToOrigin) return
         if (origin.isNullOrEmpty()) return
 
@@ -897,7 +921,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
         // 和节点树路径同一条规矩：生效范围外只记不点。
         // OCR 走的是按坐标的手势点击，点错位置比点错节点更没法挽回。
         if (!settings.isTargeted(pkg)) {
-            Log.i(TAG, "生效范围外，OCR 只记不点 $pkg：${candidate.describe()}")
+            Log.i(TAG, "生效范围外，OCR 只记不点 $pkg：${candidate.score}分")
             recordOcr(pkg, screen, candidate, DECISION_OUT_OF_SCOPE, null)
             return
         }
@@ -905,13 +929,14 @@ class AdCalmAccessibilityService : AccessibilityService() {
         // 输入法窗口在前台时一律不点。这条对 OCR 路径尤其要紧：
         // 2026-10-03 的真机日志里，OCR 把**输入法的「关闭」键**认成了关闭按钮，得了 80 分。
         if (isInputMethodActive()) {
-            Log.i(TAG, "输入法在前台，OCR 不点 $pkg：${candidate.describe()}")
+            Log.i(TAG, "输入法在前台，OCR 不点 $pkg：${candidate.score}分")
             recordOcr(pkg, screen, candidate, DECISION_HELD_INPUT_METHOD, null)
             return
         }
 
+        if (!settings.enabled || !settings.ocrEnabled || !settings.isTargeted(pkg)) return
         if (settings.dryRun) {
-            Log.i(TAG, "[观察] OCR 命中：${candidate.describe()}")
+            Log.i(TAG, "[观察] OCR 命中：${candidate.score}分")
             recordOcr(pkg, screen, candidate, DECISION_OCR_WOULD_CLICK, null)
             return
         }
@@ -938,11 +963,12 @@ class AdCalmAccessibilityService : AccessibilityService() {
             return
         }
 
-        // OCR 路径没有节点可依托，只能按坐标做手势点击
+        if (!settings.enabled || settings.dryRun || !settings.ocrEnabled || !settings.isTargeted(pkg)) return
+        // OCR 只接受明确广告专用文案，屏幕身份复核后才允许手势。
         if (clickExecutor.clickAt(candidate.clickX, candidate.clickY)) {
             clickCooldown.record(pkg, now, candidate.bounds)
             armSentinel(pkg, now)
-            Log.i(TAG, "OCR 已点击 $pkg：${candidate.describe()}")
+            Log.i(TAG, "OCR 已点击 $pkg：${candidate.score}分")
             recordOcr(pkg, screen, candidate, DECISION_OCR_CLICKED, "GESTURE")
         } else {
             recordOcr(pkg, screen, candidate, DECISION_CLICK_FAILED, null)
@@ -1043,7 +1069,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
     /**
      * 诊断模式：把当前窗口的完整节点树写进日志。
      *
-     * 这是补规则时最有用的工具——不开启时只能看到候选节点，
+     * 开启后才能在本机查看完整结构；默认日志只有候选摘要，
      * 看不到它们的上下文（属于哪个广告 SDK 容器、有哪些兄弟节点）。
      */
     private fun dumpTree(pkg: String, root: cn.adcalm.guard.model.NodeSnapshot, screen: RectSnapshot) {
@@ -1070,13 +1096,17 @@ class AdCalmAccessibilityService : AccessibilityService() {
 
         // 时间戳同时决定快照文件名：日志必须同步写完，图随后异步补上。
         val stamp = System.currentTimeMillis()
-        val snapshotName = snapshotStore.nameFor(stamp).takeIf { reserveSnapshotSlot() }
+        val activity = currentActivity
+        val generation = windowGeneration
+        val snapshotName = snapshotStore.nameFor(stamp).takeIf {
+            isExpectedDiagnosticScreen(pkg, activity, generation) && reserveSnapshotSlot()
+        }
 
         log.record(
             ObservationEntry(
                 timestamp = stamp,
                 packageName = pkg,
-                activityName = currentActivity,
+                activityName = activity,
                 screenWidth = screen.width,
                 screenHeight = screen.height,
                 candidates = emptyList(),
@@ -1087,7 +1117,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
             )
         )
 
-        if (snapshotName != null) captureSnapshot(snapshotName)
+        if (snapshotName != null) captureSnapshot(snapshotName, pkg, activity, generation)
     }
 
     /**
@@ -1114,17 +1144,29 @@ class AdCalmAccessibilityService : AccessibilityService() {
      * 对应的图不存在时，日志里那条记录只是少一张配图，不会错位——文件名是时间戳，
      * 每条记录各自唯一。
      */
-    private fun captureSnapshot(name: String) {
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return
+    private fun isExpectedDiagnosticScreen(pkg: String, activity: String?, generation: Long): Boolean = runCatching {
+        instance === this && settings.enabled && settings.debugMode && settings.isTargeted(pkg) &&
+            activity != null && currentActivity == activity && currentPackage == pkg &&
+            windowGeneration == generation && foregroundPackage() == pkg
+    }.getOrDefault(false)
+
+    private fun captureSnapshot(name: String, expectedPackage: String, expectedActivity: String?, generation: Long) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+            snapshotInFlight = false
+            return
+        }
         scope.launch {
             try {
-                val bitmap = ScreenshotCapturer.capture(this@AdCalmAccessibilityService)
-                if (bitmap != null) {
+                if (!isExpectedDiagnosticScreen(expectedPackage, expectedActivity, generation)) return@launch
+                val bitmap = ScreenshotCapturer.capture(this@AdCalmAccessibilityService) ?: return@launch
+                try {
+                    if (!isExpectedDiagnosticScreen(expectedPackage, expectedActivity, generation)) return@launch
                     withContext(Dispatchers.IO) {
-                        snapshotStore.save(bitmap, name)
-                        bitmap.recycle()
+                        snapshotStore.save(bitmap, name) {
+                            isExpectedDiagnosticScreen(expectedPackage, expectedActivity, generation)
+                        }
                     }
-                }
+                } finally { bitmap.recycle() }
             } finally {
                 snapshotInFlight = false
             }
@@ -1148,11 +1190,13 @@ class AdCalmAccessibilityService : AccessibilityService() {
         Log.i(TAG, "无障碍服务被中断")
         // 被中断之后系统随时可能解绑，别再按拍取根节点、遍历节点树
         stopTicker()
+        if (::janitor.isInitialized) janitor.stop()
     }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         instance = null
         stopTicker()
+        if (::janitor.isInitialized) janitor.stop()
         Log.i(TAG, "无障碍服务已断开")
         return super.onUnbind(intent)
     }
@@ -1226,10 +1270,6 @@ class AdCalmAccessibilityService : AccessibilityService() {
          */
         private const val SNAPSHOT_MIN_INTERVAL_MS = 1_200L
 
-        /** 隔离区的过期文件多久扫一次。半小时足够——它们是按小时过期，不是按秒。 */
-        private const val PURGE_INTERVAL_MS = 30 * 60 * 1000L
-
-
         private const val DECISION_NO_CANDIDATE = "NO_CANDIDATE"
         private const val DECISION_SUSPECT_ONLY = "SUSPECT_ONLY"
         private const val DECISION_WOULD_CLICK = "WOULD_CLICK"
@@ -1244,7 +1284,7 @@ class AdCalmAccessibilityService : AccessibilityService() {
         /**
          * 候选达标了，但这个包不在生效范围内，所以没点。
          *
-         * 只在诊断模式下会出现（诊断模式放行范围外的包，好抓它们的节点树）。
+         * 异步 OCR 结束前用户取消选择等情况会出现；范围外始终不得执行动作。
          * 单列一个值而不是复用 WOULD_CLICK，是为了让日志能一眼区分
          * 「观察模式下本该点」和「压根不该点」。
          */

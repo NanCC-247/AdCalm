@@ -144,8 +144,8 @@ class QuickStartActivity : AppCompatActivity() {
      */
     private fun showShizukuPrompt(onDecline: () -> Unit) {
         MaterialAlertDialogBuilder(this)
-            .setTitle("建议装一下 Shizuku")
-            .setMessage("广告把你带走后的收尾：1~2 秒 → 瞬间。配置约 1 分钟。")
+            .setTitle("可选增强通道")
+            .setMessage("仅用于你主动开启的增强功能。基础识别无需 Shizuku，配置时间和效果因设备而异。")
             .setPositiveButton("去配置") { _, _ -> openWizard() }
             .setNegativeButton("暂时不用") { _, _ -> onDecline() }
             .setOnCancelListener { onDecline() }
@@ -177,7 +177,7 @@ class QuickStartActivity : AppCompatActivity() {
 
         val left = listOf(accessibility, selected > 0).count { !it }
         binding.tvDone.text = if (left == 0) {
-            "两步都完成了 —— 打开应用时的广告会被自动关闭"
+            "配置完成 —— 默认只观察，请在首页确认后开启自动模式"
         } else {
             "还差 $left 步"
         }
@@ -200,7 +200,7 @@ class QuickStartActivity : AppCompatActivity() {
      *
      * Shizuku 单独对待：它是**最值得装的那个**（强停不再闪设置页、能删应用商店私有目录里的
      * 安装包），装完收益最大，所以要醒目——**只要不是「已授权」就标警示色**
-     * （未装 / 装了没激活 / 没授权，三种都用不了），文案里"强烈建议安装"只在真没装时出现。
+     * （未装 / 装了没激活 / 没授权，三种都用不了），文案里"按需配置"只在真没装时出现。
      * 其余的按普通的开启/未开启显示，开了就是正常色。
      */
     private fun renderOptional() {
@@ -209,7 +209,7 @@ class QuickStartActivity : AppCompatActivity() {
             ShizukuShell.Status.Authorized -> "已授权"
             ShizukuShell.Status.NotAuthorized -> "待授权"
             ShizukuShell.Status.InstalledNotRunning -> "待激活"
-            ShizukuShell.Status.NotInstalled -> "强烈建议安装"
+            ShizukuShell.Status.NotInstalled -> "按需配置"
         }
         binding.tvShizukuState.setTextColor(
             ContextCompat.getColor(

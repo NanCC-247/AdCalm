@@ -112,10 +112,10 @@ class OcrEngineInstrumentedTest {
         val bitmap = createTextBitmap(
             width = 1080,
             height = 2400,
-            text = "跳过",
-            x = 880f,
+            text = "跳过广告",
+            x = 830f,
             y = 170f,
-            textSize = 70f,
+            textSize = 45f,
             background = Color.rgb(28, 30, 36),
             foreground = Color.WHITE,
         )
@@ -124,7 +124,7 @@ class OcrEngineInstrumentedTest {
         val candidate = OcrCloseScorer.evaluate(blocks, screen)
 
         assertNotNull(
-            "右上角的「跳过」应被判为可点击的关闭按钮。" +
+            "右上角的完整「跳过广告」应产生候选。" +
                 "识别到：${blocks.joinToString(" | ") { it.text }}",
             candidate,
         )
@@ -137,6 +137,13 @@ class OcrEngineInstrumentedTest {
             "点击点应位于屏幕上部，实际 y=${candidate.clickY}",
             candidate.clickY < screen.height / 4,
         )
+    }
+
+    @Test
+    fun 普通界面只有关闭两个字时不产生坐标候选() {
+        val screen = RectSnapshot(0, 0, 1080, 2400)
+        val bitmap = createTextBitmap(1080, 2400, "关闭", 900f, 170f, textSize = 60f)
+        assertNull(OcrCloseScorer.evaluate(recognize(bitmap), screen))
     }
 
     @Test

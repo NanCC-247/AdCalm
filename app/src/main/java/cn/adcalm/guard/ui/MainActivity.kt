@@ -90,15 +90,19 @@ class MainActivity : AppCompatActivity() {
         binding.rowSelfCheck.setOnClickListener {
             startActivity(Intent(this, SelfCheckActivity::class.java))
         }
-        bindSwitch(binding.cbAutoForceStop, settings.autoForceStop) { settings.autoForceStop = it }
-        bindSwitch(binding.cbReturnToOrigin, settings.returnToOrigin) { settings.returnToOrigin = it }
-        bindSwitch(binding.cbAutoQuarantine, settings.autoQuarantine) { settings.autoQuarantine = it }
-        bindSwitch(binding.cbOcr, settings.ocrEnabled) { settings.ocrEnabled = it }
-        bindSwitch(binding.cbRestoreAccessibility, settings.restoreAccessibility) { settings.restoreAccessibility = it }
-        bindSwitch(binding.cbDebugMode, settings.debugMode) {
-            settings.debugMode = it
-            if (it) toast("诊断模式已开启，排查结束后记得关闭")
+        bindConsentSwitch(binding.cbAutoForceStop, settings.autoForceStop,
+            "开启自动强停？", "仅在你启用误跳回退后生效。检测可能误判，强停会中断目标应用的运行与下载；可随时关闭。") { settings.autoForceStop = it }
+        bindConsentSwitch(binding.cbReturnToOrigin, settings.autoRollback,
+            "开启误跳回退？", "仅在辅助点击后的短时间内检查跳转，并尝试返回原应用。无法确定跳转原因，可能中断你主动打开的页面；默认关闭。") {
+            settings.autoRollback = it; settings.returnToOrigin = it
         }
+        bindConsentSwitch(binding.cbAutoQuarantine, settings.autoQuarantine,
+            "开启下载处置？", "检测误跳后的短时间内，尝试取消浏览器或应用市场的下载，并将符合条件的安装包隔离。无法确认下载归属，可能影响你主动下载的文件。需要通知/文件权限；隔离文件不再定时删除，删除须你确认。") { settings.autoQuarantine = it }
+        bindSwitch(binding.cbOcr, settings.ocrEnabled) { settings.ocrEnabled = it }
+        bindConsentSwitch(binding.cbRestoreAccessibility, settings.restoreAccessibility,
+            "开启绑定恢复？", "仅在你打开 AdCalm 且保护未暂停时，借助已授权 Shizuku 恢复本应用的无障碍绑定。会修改系统无障碍设置；可随时关闭。") { settings.restoreAccessibility = it }
+        bindConsentSwitch(binding.cbDebugMode, settings.debugMode,
+            "开启本机诊断？", "仅记录你已选择应用的完整节点结构及未脱敏截图，可能包含账号、聊天和支付信息。文件仅保存在本机，安全摘要导出不包含这些内容。排查后关闭并到观察日志清空记录。") { settings.debugMode = it }
         bindModeSwitch()
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
@@ -492,6 +496,20 @@ class MainActivity : AppCompatActivity() {
         view.setOnCheckedChangeListener { _, checked -> write(checked); refresh() }
     }
 
+    private fun bindConsentSwitch(button: CompoundButton, initial: Boolean, title: String, message: String, write: (Boolean) -> Unit) {
+        var syncing = false
+        button.isChecked = initial
+        button.setOnCheckedChangeListener { _, checked ->
+            if (syncing) return@setOnCheckedChangeListener
+            if (!checked) { write(false); refresh(); return@setOnCheckedChangeListener }
+            syncing = true; button.isChecked = false; syncing = false
+            MaterialAlertDialogBuilder(this).setTitle(title).setMessage(message)
+                .setPositiveButton("了解并开启") { _, _ ->
+                    write(true); syncing = true; button.isChecked = true; syncing = false; refresh()
+                }.setNegativeButton("取消", null).show()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         refresh()
@@ -558,8 +576,8 @@ class MainActivity : AppCompatActivity() {
         val usage = Permissions.hasUsageAccess(this)
         val files = Permissions.hasAllFilesAccess(this)
         val notifications = Permissions.hasNotificationAccess(this)
-        val requiredMissing = listOf(accessibility, usage).count { !it }
-        val optionalMissing = listOf(files, notifications).count { !it }
+        val requiredMissing = if (accessibility) 0 else 1
+        val optionalMissing = listOf(usage, files, notifications).count { !it }
         val targets = settings.targetedPackages
 
         // 首页有三个数字要读系统或文件才能算出来，**都不能在主线程上做**：
@@ -673,9 +691,9 @@ class MainActivity : AppCompatActivity() {
                 log.clicksSince(ObservationLog.startOfToday())
             }
             binding.tvTodayClicks.text = if (count > 0) {
-                "今天已跳过 $count 次广告"
+                "今天已发起 $count 次辅助点击"
             } else {
-                "今天还没有跳过记录"
+                "今天还没有辅助点击记录"
             }
             binding.tvTodayClicks.setTextColor(
                 ContextCompat.getColor(
@@ -763,7 +781,7 @@ class MainActivity : AppCompatActivity() {
         val missing = mutableListOf<String>()
         if (settings.autoForceStop && !usage) missing += "自动强停"
         if (settings.autoQuarantine && !files) missing += "安装包隔离"
-        if (!notifications) missing += "下载通知拦截"
+        if (settings.autoQuarantine && !notifications) missing += "下载通知处置"
 
         // Shizuku 有**三种**状态，不能混成一句话：
         //   1. 没装 / 没启动 / 没授权 —— 是"还没配好"，依赖它的功能降级或不可用
@@ -776,7 +794,9 @@ class MainActivity : AppCompatActivity() {
         val shizukuAuthorized = ShizukuShell.status() == ShizukuShell.Status.Authorized
         val channelBroken = shizukuChannelOk == false && shizukuAuthorized
 
+        val shizukuNeeded = settings.autoForceStop || settings.autoRollback || settings.restoreAccessibility
         val shizukuLine = when {
+            !shizukuNeeded -> null
             channelBroken -> {
                 val affected = buildList {
                     if (settings.autoForceStop) add("强停")
@@ -788,7 +808,7 @@ class MainActivity : AppCompatActivity() {
 
             !shizukuAuthorized -> {
                 val affected = buildList {
-                    add("安装包清理")
+                    if (settings.restoreAccessibility) add("无障碍绑定恢复")
                     if (settings.returnToOrigin) add("误跳后送回原应用")
                     if (settings.autoForceStop) add("强停会退化成点设置页")
                 }
@@ -928,8 +948,7 @@ class MainActivity : AppCompatActivity() {
             MaterialAlertDialogBuilder(this)
                 .setTitle("开启自动模式？")
                 .setMessage(
-                    "关掉观察模式后，本工具会真的去点击它认定的关闭按钮。\n\n" +
-                        "建议先跑几天观察模式，看过日志确认没有误判再开。",
+                    "只在你选择的应用中，尝试点击明确可见、已有广告证据的关闭或跳过按钮。可能漏判或误判，请先核对观察日志。不会绕过付费、会员、登录或安装确认；回退、强停和下载处置需分别开启。",
                 )
                 .setPositiveButton("开启自动模式") { _, _ ->
                     settings.dryRun = false

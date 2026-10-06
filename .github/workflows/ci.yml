@@ -1,8 +1,5 @@
 name: CI
 
-# 这个项目所有的单元测试都是纯逻辑测试（core/ 和 rules/ 里全是纯函数），
-# 不需要真机也不需要模拟器，所以在普通 Linux runner 上就能全部跑完。
-# 仪器测试（androidTest）需要设备，不在这里跑。
 
 on:
   push:
@@ -26,16 +23,6 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # ⚠ 这里**故意不用 `android-actions/setup-android`**。
-      #
-      # 它内部会执行 `sdkmanager tools`，而 `tools` 这个包早已从 SDK 仓库下架，
-      # 于是这个 action 自己就报 `Failed to find package 'tools'` 退出 1 ——
-      # **后面的测试、Lint、打包一步都不会跑**。2026-10-05 第一次推送时就是这么死的，
-      # 连着三次全红，而日志里一个字的代码错误都没有。
-      #
-      # GitHub 的 ubuntu 镜像**本来就预装了 Android SDK 和 cmdline-tools**，
-      # 所以直接用它的 sdkmanager 装我们要的那几个包就行，少一个会坏的依赖。
-      # 版本号跟着 app/build.gradle.kts 里的 compileSdk 走，改那里时记得改这里。
       - name: 安装本项目要的 SDK 平台与构建工具
         run: |
           SDKMANAGER="$(command -v sdkmanager || true)"
@@ -49,7 +36,6 @@ jobs:
             exit 1
           fi
           echo "用 $SDKMANAGER"
-          # 同意许可。这一步返回非 0 是正常的（它把没答完的许可也报出来），忽略掉。
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
@@ -62,47 +48,30 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      # 这里刻意直接调 ./gradlew，不调 build.sh。
-      # build.sh 会先 source env.sh，而 env.sh 会把 GRADLE_USER_HOME 指到项目内，
-      # 让上面的缓存失效。CI 里不需要那套本机工具链逻辑。
       - name: 单元测试
         run: ./gradlew --no-daemon testDebugUnitTest
 
       - name: Lint
         run: ./gradlew --no-daemon lintDebug
 
+      - name: Release Lint 和无密钥编译
+        run: ./gradlew --no-daemon lintRelease assembleRelease
+
       - name: 装配 Debug APK
         run: ./gradlew --no-daemon assembleDebug
 
-      # 摆成"解开就是一个 apk"的样子。
-      #
-      # 不这么做也行，但那样 artifact 的 zip 里会带着 app/build/outputs/apk/debug/ 一整条
-      # 目录，下载的人得自己往里翻。**这个包是给人下载试用的**，那就别让他翻目录。
-      # 文件名带上提交号，别人拿到手能说清"我装的是哪一版"。
-      - name: 整理出要分发的包
+      - name: 整理 CI 调试构建（开发验证）
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk "dist/adcalm-${GITHUB_SHA::7}.apk"
           ls -la dist
 
-      # 出一个可下载的调试包。
-      #
-      # **为什么是 artifact，而不是挂到 Release 资产上**——这是刻意的取舍：
-      # 仓库的红线是"只发布源码、不发布可直接安装的成品 APK"（见 README 的
-      # 「分享与法律风险」）。artifact 和 Release 资产的区别是实质性的：
-      # 它是一次性的构建产物，**必须登录 GitHub 才能下载**，而且到期自动删除；
-      # 仓库和 Release 里**始终没有任何 APK 文件**，那条红线的字面和精神都没破。
-      #
-      # 想自己装的开发者从 Actions 页面拿这个就够了；"分发成品"那个动作没有发生。
-      # 真要把它改成 Release 资产，先回去读一遍 README 那一节。
-      - name: 上传调试包
+      - name: 上传 CI 调试构建（非正式签名）
         uses: actions/upload-artifact@v4
         with:
           name: adcalm-debug-apk
           path: dist/*.apk
-          # 比默认的 90 天短：它是个方便开发者试用的构建产物，不是长期分发渠道。
           retention-days: 30
-          # 打不出包时让这一步直接失败，别静默产出一个空的 artifact。
           if-no-files-found: error
 
       - name: 上传测试报告

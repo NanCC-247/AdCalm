@@ -6,12 +6,14 @@ body:
     attributes:
       value: |
         请描述可复现的场景。日志或截图有助于排查，但不是提交问题的前提。
-        分享前请遮盖账号、聊天内容、通知、个人路径等私人信息。
+        优先提交默认导出的脱敏摘要，并检查内容；不要上传原始日志、完整节点树或诊断目录。
+        分享前请遮盖账号、聊天内容、通知、个人路径等私人信息，无需设备序列号或联系方式。
   - type: dropdown
     id: kind
     attributes:
       label: 问题类型
       options:
+        - 下载、安装、校验或升级失败
         - 广告未被跳过
         - 点击了不该点击的位置
         - 误跳回退或强停异常
@@ -24,16 +26,28 @@ body:
     id: version
     attributes:
       label: AdCalm 版本
-      placeholder: 例如 v0.1.0；如为自行构建，也可提供提交号
+      placeholder: 例如 v0.1.1-beta.1；如为自行构建，也可提供提交号
     validations:
       required: true
   - type: input
     id: device
     attributes:
       label: 设备与系统
+      description: 只需机型与系统版本，无需设备序列号、IMEI 或账号信息。
       placeholder: 机型 / Android 版本 / 厂商系统版本
     validations:
       required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: 安装包来源
+      options:
+        - GitHub Release APK
+        - Actions Debug 包
+        - 自行构建
+        - 其他或不确定
+    validations:
+      required: false
   - type: input
     id: app
     attributes:
@@ -53,8 +67,9 @@ body:
     attributes:
       label: 复现时的模式
       options:
-        - 自动模式
         - 纯观察模式
+        - 自动模式
+        - 已暂停保护
         - 不确定
     validations:
       required: true
@@ -62,13 +77,13 @@ body:
     id: status
     attributes:
       label: 相关状态
-      description: 如有必要，说明是否已选择该应用、无障碍是否运行、Shizuku 与能力自检结果。
+      description: 说明是否已选择该应用、无障碍是否运行、增强回退/强停/下载处置/绑定恢复开关、Shizuku 与能力自检结果；未开启请注明。
     validations:
       required: false
   - type: textarea
     id: log
     attributes:
-      label: 日志或截图（可选）
-      description: 只提交相关且已脱敏的片段；需要诊断时短时开启，复现后关闭。
+      label: 脱敏摘要或相关截图（可选）
+      description: 只提交相关且已检查的摘要或遮盖截图。完整诊断短时开启、复现后关闭，原始文件留在本机。
     validations:
       required: false

@@ -59,7 +59,7 @@ class QuarantineActivity : AppCompatActivity() {
         val totalBytes = files.sumOf { it.sizeBytes }
         binding.tvSummary.text = "${files.size} 个暂存文件"
         binding.tvTotalSize.text = "占用空间 ${formatSize(totalBytes)}"
-        binding.tvRetention.text = "文件只是被移走，可恢复到原位置。保留 ${settings.quarantineRetentionHours} 小时后会自动删除。"
+        binding.tvRetention.text = "文件只是被移走，可恢复到原位置。本测试版不定时删除；永久删除须你逐项确认。"
         binding.emptyState.visibility = if (files.isEmpty()) View.VISIBLE else View.GONE
         binding.rvFiles.visibility = if (files.isEmpty()) View.GONE else View.VISIBLE
         binding.tvListLabel.visibility = if (files.isEmpty()) View.GONE else View.VISIBLE

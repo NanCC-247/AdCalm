@@ -1,7 +1,9 @@
 package cn.adcalm.guard.data
 
 import android.content.Context
+import cn.adcalm.guard.core.GuardSettings
 import cn.adcalm.guard.model.Candidate
+import cn.adcalm.guard.service.AdCalmAccessibilityService
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -10,7 +12,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-/** 一次窗口观测的完整记录，用于观察模式下的人工复核。 */
+/** 一次窗口观测。默认落盘为摘要；完整节点树仅供明确开启的本机诊断。 */
 data class ObservationEntry(
     val timestamp: Long,
     val packageName: String,
@@ -40,6 +42,10 @@ data class ObservationEntry(
  */
 class ObservationLog(private val context: Context) {
 
+    private val settings by lazy {
+        GuardSettings(context.getSharedPreferences(AdCalmAccessibilityService.PREFS_NAME, Context.MODE_PRIVATE))
+    }
+
     val file: File get() = File(context.filesDir, FILE_NAME)
 
     /** 轮转出来的上一份。 */
@@ -54,9 +60,11 @@ class ObservationLog(private val context: Context) {
     private fun logFiles(): List<File> = listOf(file, rotatedFile).filter { it.exists() }
 
     fun record(entry: ObservationEntry) {
-        runCatching {
-            rotateIfNeeded()
-            file.appendText(entry.toJson().toString() + "\n")
+        synchronized(LOG_LOCK) {
+            runCatching {
+                rotateIfNeeded()
+                file.appendText(entry.toJson().toString() + "\n")
+            }
         }
     }
 
@@ -116,63 +124,86 @@ class ObservationLog(private val context: Context) {
     fun sizeBytes(): Long =
         runCatching { logFiles().sumOf { it.length() } }.getOrDefault(0L)
 
-    fun clear() {
-        runCatching { logFiles().forEach { it.delete() } }
+    /** 删除本应用观察记录、诊断截图和已有导出文件；不涉及下载或用户素材。 */
+    fun clear(): Boolean = synchronized(LOG_LOCK) {
+        // 必须先设置截图清理边界，避免清空前启动的异步截屏稍后重新落盘。
+        val snapshotsCleared = SnapshotStore(context).clear()
+        val logsCleared = logFiles().map { deleteIfPresent(it) }.all { it }
+        val exportsCleared = clearExports()
+        snapshotsCleared && logsCleared && exportsCleared
     }
 
-    /** 导出到指定文件，供用户通过 adb pull 或分享功能取走。轮转出去的那份在前面（时间顺序）。 */
-    fun exportTo(dest: File): Boolean = runCatching {
+    /** 默认且唯一的应用内导出是安全摘要，涵盖轮转日志。完整诊断只保留在本机。 */
+    fun exportTo(dest: File): Boolean = synchronized(LOG_LOCK) { runCatching {
+        // 防止误传源文件导致原始日志被截断。
+        if (dest.canonicalFile in listOf(file.canonicalFile, rotatedFile.canonicalFile)) {
+            return@runCatching false
+        }
         val sources = listOf(rotatedFile, file).filter { it.exists() }
         if (sources.isEmpty()) return@runCatching false
         dest.parentFile?.mkdirs()
-        dest.outputStream().use { out ->
-            sources.forEach { src -> src.inputStream().use { it.copyTo(out) } }
+        val session = ObservationPrivacy.ExportSession()
+        var written = 0
+        dest.bufferedWriter().use { out ->
+            sources.forEach { src -> src.bufferedReader().useLines { lines ->
+                lines.forEach { line ->
+                    session.summarizeLine(line)?.let {
+                        out.write(it)
+                        out.newLine()
+                        written++
+                    }
+                }
+            } }
+        }
+        if (written == 0) {
+            dest.delete()
+            return@runCatching false
         }
         true
+    }.getOrElse { dest.delete(); false } }
+
+    private fun clearExports(): Boolean = runCatching {
+        exportFiles().map { deleteIfPresent(it) }.all { it }
     }.getOrDefault(false)
+
+    fun hasExportedCopies(): Boolean = runCatching { exportFiles().any { it.exists() } }.getOrDefault(false)
+
+    private fun exportFiles(): List<File> {
+        val currentExport = File(File(context.cacheDir, EXPORT_DIR_NAME), EXPORT_FILE_NAME)
+        // 旧版曾把完整日志复制到 external-files；清空时也处理该应用自己创建的副本。
+        val oldExport = context.getExternalFilesDir(null)?.let { File(it, FILE_NAME) }
+        return listOfNotNull(currentExport, oldExport)
+    }
+
+    private fun deleteIfPresent(target: File): Boolean =
+        runCatching { !target.exists() || target.delete() }.getOrDefault(false)
 
     private fun ObservationEntry.toJson(): JSONObject = JSONObject().apply {
         put("ts", timestamp)
         put("time", TIME_FORMAT.format(Date(timestamp)))
-        put("pkg", packageName)
-        put("activity", activityName ?: "")
+        put("pkg", ObservationPrivacy.localPackageName(packageName))
         put("screen", "$screenWidth x $screenHeight")
-        put("decision", decision)
+        put("decision", ObservationPrivacy.safeDecision(decision))
         put("dryRun", dryRun)
-        if (clickMethod != null) put("clickMethod", clickMethod)
-        if (treeDump != null) put("tree", JSONArray(treeDump))
-        if (snapshotName != null) put("snapshot", snapshotName)
+        ObservationPrivacy.safeClickMethod(clickMethod)?.let { put("clickMethod", it) }
+        val diagnostic = settings.debugMode && (treeDump != null || snapshotName != null) &&
+            SnapshotStore(context).acceptsDiagnosticTimestamp(timestamp)
+        put("privacy", if (diagnostic) "local_diagnostic" else "summary")
+        if (diagnostic) {
+            treeDump?.let { dump -> runCatching { JSONArray(dump) }.getOrNull()?.let { put("tree", it) } }
+            snapshotName?.takeIf { SnapshotStore.isSnapshotName(it) }?.let { put("snapshot", it) }
+        }
         put("candidates", JSONArray().apply {
-            candidates.forEach { c ->
-                put(JSONObject().apply {
-                    put("score", c.score)
-                    put("verdict", c.verdict.name)
-                    put("viewId", c.snapshot.viewId ?: "")
-                    put("text", c.snapshot.text ?: "")
-                    put("desc", c.snapshot.contentDescription ?: "")
-                    put("clickable", c.snapshot.clickable)
-                    put(
-                        "bounds",
-                        "[${c.snapshot.bounds.left},${c.snapshot.bounds.top}," +
-                            "${c.snapshot.bounds.right},${c.snapshot.bounds.bottom}]"
-                    )
-                    // 祖先类名是补规则的关键线索：能看出这个节点属于哪个广告 SDK 容器
-                    put("ancestors", JSONArray().apply {
-                        c.snapshot.ancestorClassNames
-                            .filter { it.isNotBlank() }
-                            .takeLast(6)
-                            .forEach { put(it) }
-                    })
-                    put("reasons", JSONArray().apply {
-                        c.reasons.forEach { r -> put("${r.delta}:${r.label}") }
-                    })
-                })
-            }
+            candidates.forEach { put(ObservationPrivacy.candidateSummary(it)) }
         })
     }
 
     companion object {
+        private val LOG_LOCK = Any()
         private const val FILE_NAME = "observer_log.jsonl"
+
+        const val EXPORT_DIR_NAME = "observation-exports"
+        const val EXPORT_FILE_NAME = "observer_summary.jsonl"
 
         /** 轮转出来的上一份。见 [rotateIfNeeded]。 */
         private const val ROTATED_FILE_NAME = "observer_log.1.jsonl"

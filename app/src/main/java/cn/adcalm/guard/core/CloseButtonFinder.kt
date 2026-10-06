@@ -9,10 +9,8 @@ import cn.adcalm.guard.rules.RuleResult
 import cn.adcalm.guard.rules.RuleSet
 
 /**
- * 在窗口节点树里找出所有"可能是关闭按钮"的节点，逐个打分后按分数降序返回。
- *
- * 三级策略中 L1（规则库）和 L2（启发式）在这里汇合；
- * L3（OCR 兜底）只在 L1/L2 都没找到候选时才触发。
+ * 按明确文案和可验证广告语境识别已有关闭控件，合格动作候选优先。
+ * 规则只提供诊断信息和拒绝条件，不能绕过公开测试版的动作边界。
  */
 class CloseButtonFinder(
     private val countdownTracker: CountdownTracker = CountdownTracker(),
@@ -27,17 +25,16 @@ class CloseButtonFinder(
         ruleSet: RuleSet? = null,
     ): List<Candidate> {
         return root.walk()
-            .filter { it.visible && it.bounds.isValid }
+            .filter { it.visible && it.enabled && ExplicitClosePolicy.isInside(it.bounds, screen) }
             // 太小的节点是布局噪声。实测日志里出现过 1x1 像素的"可点击"节点，
             // 它没有任何实际触达面积，不可能是能按到的按钮。
             .filter { it.bounds.width >= MIN_NODE_PX && it.bounds.height >= MIN_NODE_PX }
             .filter { it.clickable || it.text != null || it.contentDescription != null }
             .map { node -> evaluate(node, screen, nowMs, pkg, activity, ruleSet) }
-            // 同分时优先"节点自己写着关闭"的候选，而不是"只有 id 像"的。
-            // 广告会摆两个关闭按钮：真按钮有文案（要给人看，难造假），
-            // 诱饵往往只有一个 skip 味的 id。按树序取第一个的话，谁在前谁中——那是运气。
+            // 合格控件优先；同分优先可见文案，ID 命中不创造动作权限。
             .sortedWith(
-                compareByDescending<Candidate> { it.score }
+                compareByDescending<Candidate> { it.verdict == Verdict.CLICK }
+                    .thenByDescending { it.score }
                     .thenByDescending { it.hasTextualClose },
             )
             .toList()
@@ -65,9 +62,7 @@ class CloseButtonFinder(
                 score = VETO_SCORE,
                 reasons = listOf(ScoreReason(VETO_SCORE, rule.detail)),
                 verdict = Verdict.IGNORE,
-                // 规则命中是"这个节点是什么"的明确判断。这里虽然是被否决，
-                // 但证据类型相同——置 true 免得下游把它当成"只靠位置猜"的候选。
-                hasStrongEvidence = true,
+                hasStrongEvidence = false,
             )
 
             is RuleResult.Hit -> ConfidenceScorer.score(

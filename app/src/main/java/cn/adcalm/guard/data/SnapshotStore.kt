@@ -3,6 +3,8 @@ package cn.adcalm.guard.data
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
+import cn.adcalm.guard.core.GuardSettings
+import cn.adcalm.guard.service.AdCalmAccessibilityService
 import java.io.File
 
 /**
@@ -20,8 +22,16 @@ import java.io.File
  *
  * **隐私**：截图可能包含任意界面内容，属于个人数据。
  * 所以它只存应用私有目录（不需要任何存储权限），只在诊断模式下抓，并且限量保留。
+ * 图片不会自动脱敏；应用内的摘要导出不包含这些图片。
  */
 class SnapshotStore(private val context: Context) {
+
+    private val settings by lazy {
+        GuardSettings(context.getSharedPreferences(AdCalmAccessibilityService.PREFS_NAME, Context.MODE_PRIVATE))
+    }
+
+    /** 放在快照目录之外，清理图片时仍保留异步抓取的拒绝边界。 */
+    private val clearCutoff: File get() = File(context.filesDir, CLEAR_CUTOFF_FILE)
 
     val dir: File get() = File(context.filesDir, DIR_NAME)
 
@@ -34,31 +44,61 @@ class SnapshotStore(private val context: Context) {
      */
     fun nameFor(timestamp: Long): String = "snap_$timestamp.jpg"
 
-    fun fileFor(name: String): File = File(dir, name)
-
-    /** 保存一张快照并顺带清理旧文件。返回是否成功。 */
-    fun save(bitmap: Bitmap, name: String): Boolean = runCatching {
-        dir.mkdirs()
-        val scaled = scaleDown(bitmap)
-        fileFor(name).outputStream().use { out ->
-            // JPEG 质量 80 足够看清按钮位置和形状，体积约为无损的三分之一。
-            // 这类快照的用途是"定位那块像素在屏幕的哪里"，不是做视觉设计评审。
-            scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-        }
-        if (scaled !== bitmap) scaled.recycle()
-        prune()
-        true
-    }.getOrElse { e ->
-        Log.w(TAG, "快照保存失败：$name", e)
-        false
+    fun fileFor(name: String): File {
+        require(isSnapshotName(name)) { "Invalid diagnostic snapshot name" }
+        return File(dir, name)
     }
 
+    /** 完整节点树也使用同一清理边界，拒绝清空前已经开始的诊断工作。 */
+    fun acceptsDiagnosticTimestamp(timestamp: Long): Boolean = synchronized(SNAPSHOT_LOCK) {
+        timestamp > maxOf(lastClearedAt, runCatching { clearCutoff.readText().toLong() }.getOrDefault(0L))
+    }
+
+    /** 保存一张快照并顺带清理旧文件。返回是否成功。 */
+    fun save(bitmap: Bitmap, name: String, canPersist: () -> Boolean = { true }): Boolean = synchronized(SNAPSHOT_LOCK) { runCatching {
+        val stamp = snapshotTimestamp(name) ?: return@runCatching false
+        // 再次读取开关：截屏回调返回前，用户可能已经关闭诊断或清空了日志。
+        if (!settings.enabled || !settings.debugMode || !acceptsDiagnosticTimestamp(stamp) || !canPersist()) return@runCatching false
+        if (!dir.exists() && !dir.mkdirs()) return@runCatching false
+        val target = fileFor(name)
+        val partial = File(dir, "$name.part")
+        val scaled = scaleDown(bitmap)
+        try {
+            val compressed = partial.outputStream().use { out ->
+                // 压缩仅用于限制空间，不会消除画面里的个人信息。
+                scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+            }
+            if (!compressed || !settings.enabled || !settings.debugMode || !canPersist() ||
+                !partial.renameTo(target)) return@runCatching false
+        } finally {
+            partial.delete()
+            if (scaled !== bitmap) scaled.recycle()
+        }
+        prune()
+        true
+    }.getOrElse {
+        // 异常和文件名可能携带本机路径，不把它们继续写入 logcat。
+        Log.w(TAG, "诊断快照保存失败")
+        false
+    } }
+
     fun list(): List<File> =
-        runCatching { dir.listFiles()?.sortedByDescending { it.name } ?: emptyList() }
+        runCatching { dir.listFiles()?.filter { it.isFile && isSnapshotName(it.name) }
+            ?.sortedByDescending { it.name } ?: emptyList() }
             .getOrDefault(emptyList())
 
-    fun clear() {
-        runCatching { dir.listFiles()?.forEach { it.delete() } }
+    /** 只清理本应用生成的诊断图片，包含未完成写入；返回是否完整清理。 */
+    fun clear(): Boolean = synchronized(SNAPSHOT_LOCK) {
+        lastClearedAt = maxOf(lastClearedAt, System.currentTimeMillis())
+        val cutoffSaved = runCatching { clearCutoff.writeText(lastClearedAt.toString()); true }.getOrDefault(false)
+        val deleted = runCatching {
+            val files = if (dir.exists()) dir.listFiles() ?: return@runCatching false else emptyArray()
+            files.filter { item ->
+                item.isFile && (isSnapshotName(item.name) ||
+                    item.name.removeSuffix(".part").let { item.name.endsWith(".part") && isSnapshotName(it) })
+            }.map { it.delete() }.all { it }
+        }.getOrDefault(false)
+        cutoffSaved && deleted
     }
 
     private fun scaleDown(src: Bitmap): Bitmap {
@@ -79,6 +119,16 @@ class SnapshotStore(private val context: Context) {
     }
 
     companion object {
+        private val SNAPSHOT_LOCK = Any()
+        private var lastClearedAt = 0L
+        private const val CLEAR_CUTOFF_FILE = "snapshot_clear_cutoff.txt"
+        private val SNAPSHOT_NAME = Regex("snap_(\\d{1,19})\\.jpg")
+
+        fun isSnapshotName(name: String): Boolean = snapshotTimestamp(name) != null
+
+        private fun snapshotTimestamp(name: String): Long? =
+            SNAPSHOT_NAME.matchEntire(name)?.groupValues?.get(1)?.toLongOrNull()?.takeIf { it >= 0 }
+
         private const val TAG = "AdCalm"
 
         /** 目录名。导出用：`adb exec-out run-as cn.adcalm.guard tar cf - -C files snapshots`。 */

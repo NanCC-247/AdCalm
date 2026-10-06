@@ -5,11 +5,14 @@ import android.os.Environment
 import android.os.FileObserver
 import android.util.Log
 import cn.adcalm.guard.core.DownloadFilter
+import cn.adcalm.guard.core.DownloadActionPolicy
 import cn.adcalm.guard.core.GuardSettings
 import cn.adcalm.guard.core.Permissions
 import cn.adcalm.guard.core.QuarantineDecision
 import org.json.JSONObject
 import java.io.File
+import java.nio.file.Files
+import java.util.UUID
 
 data class QuarantinedFile(
     val originalPath: String,
@@ -22,7 +25,7 @@ data class QuarantinedFile(
 /**
  * 广告下载文件的隔离区。
  *
- * 只做"移走"，不做"删除"——24 小时后由定时任务真正删除，期间用户可以一键恢复。
+ * 自动处理只做可恢复的隔离；不会按保留时长永久删除，删除须用户逐项确认。
  * 之所以不直接删：误判的代价不对称，误留一个 apk 只是占几 MB 空间，
  * 误删用户正在下载的东西是数据丢失。
  *
@@ -45,8 +48,17 @@ class DownloadJanitor(
     private val indexFile: File
         get() = File(context.filesDir, INDEX_NAME)
 
+    /** 周期检查让设置变更立即作用于监控，无需重新连接无障碍服务。 */
+    fun syncWithSettings() {
+        if (isMonitoringAllowed()) start() else stop()
+    }
+
+    private fun isMonitoringAllowed(): Boolean = settings.enabled && !settings.dryRun &&
+        settings.autoQuarantine && Permissions.hasAllFilesAccess(context)
+
+    @Synchronized
     fun start() {
-        if (running) return
+        if (running || !isMonitoringAllowed()) return
         running = true
 
         var subdirBudget = MAX_SUBDIR_OBSERVERS
@@ -71,6 +83,7 @@ class DownloadJanitor(
         Log.i(TAG, "下载监控已启动，覆盖 ${observers.size} 个目录")
     }
 
+    @Synchronized
     fun stop() {
         running = false
         observers.forEach { runCatching { it.stopWatching() } }
@@ -82,17 +95,17 @@ class DownloadJanitor(
             @Suppress("DEPRECATION")
             val observer = object : FileObserver(
                 dir.absolutePath,
-                CREATE or CLOSE_WRITE or MOVED_TO,
+                CLOSE_WRITE or MOVED_TO,
             ) {
                 override fun onEvent(event: Int, path: String?) {
-                    if (path == null) return
+                    if (path == null || path.contains('/') || path.contains('\\')) return
                     onFileAppeared(File(dir, path))
                 }
             }
             observer.startWatching()
             observers += observer
-        } catch (e: Exception) {
-            Log.w(TAG, "无法监控 ${dir.absolutePath}", e)
+        } catch (_: Exception) {
+            Log.w(TAG, "无法监控下载目录")
         }
     }
 
@@ -100,66 +113,82 @@ class DownloadJanitor(
     private fun onFileAppeared(file: File) {
         if (!running) return
         if (!file.isFile) return
-        if (!settings.autoQuarantine) return
+        if (!isMonitoringAllowed()) return
         // 观察模式 = 纯观察：**一个文件都不动**。
         //
         // 移动文件也是"动手"，而用户开观察模式时的理解是"只记录"。
         // 2026-10-05 的审计把这条一起点了出来（"纯观察覆盖所有动作入口，
         // 不产生点击、返回、强停或文件变化"），用户拍板照办。
-        // 隔离本身是可逆的（只移不删、24 小时后才真删），所以暂停它不会丢东西。
+        // 隔离文件一直保留到用户恢复或明确删除。
         if (settings.dryRun) return
         if (!Permissions.hasAllFilesAccess(context)) {
             Log.d(TAG, "没有所有文件访问权限，跳过隔离")
             return
         }
 
+        val source = runCatching { file.canonicalFile }.getOrNull() ?: return
+        if (!isInWatchedDirectory(source)) return
         val now = System.currentTimeMillis()
+        if (!DownloadActionPolicy.allows(settings.enabled, settings.dryRun, settings.autoQuarantine, lastAdJumpAt, now)) return
         val decision = DownloadFilter.decide(
-            path = file.absolutePath,
+            path = source.absolutePath,
             // Java 拿不到真正的创建时间，用修改时间近似：
             // 新落盘的文件 mtime ≈ now，偏保守的方向正是我们想要的
-            createdAt = file.lastModified(),
+            createdAt = source.lastModified(),
             adJumpAt = lastAdJumpAt,
             now = now,
         )
 
         when (decision) {
-            is QuarantineDecision.Quarantine -> quarantine(file, decision.reason)
-            is QuarantineDecision.Skip -> Log.d(TAG, "跳过 ${file.name}：${decision.reason}")
+            is QuarantineDecision.Quarantine -> quarantine(source)
+            is QuarantineDecision.Skip -> Unit
         }
     }
 
-    private fun quarantine(file: File, reason: String) {
+    private fun quarantine(file: File) = synchronized(FILE_LOCK) {
+        if (!canQuarantineNow(file)) return@synchronized
         val dir = quarantineDir
         if (!dir.exists() && !dir.mkdirs()) {
-            Log.w(TAG, "无法创建隔离目录 ${dir.absolutePath}")
-            return
+            Log.w(TAG, "无法创建隔离目录")
+            return@synchronized
         }
 
         val stamp = System.currentTimeMillis()
-        val dest = File(dir, "${stamp}_${file.name}")
-
-        val moved = file.renameTo(dest) || runCatching {
-            file.copyTo(dest, overwrite = true)
-            file.delete()
-        }.getOrDefault(false)
-
-        if (!moved) {
-            Log.w(TAG, "隔离失败：${file.absolutePath}")
-            return
-        }
-
-        appendIndex(
-            QuarantinedFile(
-                originalPath = file.absolutePath,
-                quarantinePath = dest.absolutePath,
-                fileName = file.name,
-                sizeBytes = dest.length(),
-                quarantinedAt = stamp,
-            )
+        // 不包含原文件名，避免同毫秒的同名下载互相覆盖。
+        val dest = File(dir, "${stamp}_${UUID.randomUUID()}")
+        val entry = QuarantinedFile(
+            originalPath = file.absolutePath,
+            quarantinePath = dest.absolutePath,
+            fileName = file.name,
+            sizeBytes = file.length(),
+            quarantinedAt = stamp,
         )
-        Log.i(TAG, "已隔离 ${file.name}（$reason）")
+        // 索引写不进去就不移动，保证已经隔离的文件有可恢复记录。
+        if (!appendIndex(entry)) return@synchronized
+        val moved = runCatching {
+            // 从文件事件到移动之间，权限、模式和误跳窗口都可能发生变化。
+            if (!canQuarantineNow(file)) return@runCatching false
+            Files.move(file.toPath(), dest.toPath()) // 不提供 REPLACE_EXISTING。
+            true
+        }.getOrDefault(false)
+        if (!moved) { removeFromIndex(dest.absolutePath); return@synchronized }
+        Log.i(TAG, "已隔离一个下载文件，可在隔离区恢复")
     }
+
+    private fun canQuarantineNow(file: File): Boolean {
+        if (!running || !isMonitoringAllowed() || !file.isFile || !isInWatchedDirectory(file)) return false
+        val now = System.currentTimeMillis()
+        if (!DownloadActionPolicy.allows(settings.enabled, settings.dryRun, settings.autoQuarantine, lastAdJumpAt, now)) return false
+        return DownloadFilter.decide(file.absolutePath, file.lastModified(), lastAdJumpAt, now) is QuarantineDecision.Quarantine
+    }
+
+    private fun isInWatchedDirectory(file: File): Boolean = runCatching {
+        val parent = file.canonicalFile.parentFile
+        watchDirectories().any { root ->
+            val canonicalRoot = root.canonicalFile
+            parent == canonicalRoot || parent?.parentFile == canonicalRoot
+        }
+    }.getOrDefault(false)
 
     // ---- 索引读写 ----
 
@@ -168,53 +197,47 @@ class DownloadJanitor(
         return runCatching {
             indexFile.readLines()
                 .mapNotNull { line -> parseEntry(line) }
-                .filter { File(it.quarantinePath).exists() }
+                .filter { ownedQuarantineFile(it)?.isFile == true }
         }.getOrDefault(emptyList())
     }
 
-    fun restore(entry: QuarantinedFile): Boolean {
-        val src = File(entry.quarantinePath)
-        if (!src.exists()) return false
-        val dest = File(entry.originalPath)
+    fun restore(entry: QuarantinedFile): Boolean = synchronized(FILE_LOCK) {
+        val src = ownedQuarantineFile(entry) ?: return@synchronized false
+        if (!src.isFile || !Permissions.hasAllFilesAccess(context)) return@synchronized false
+        val dest = runCatching { File(entry.originalPath).canonicalFile }.getOrNull() ?: return@synchronized false
+        // 用户可能已下载了新的同名文件；失败时完整保留隔离文件及索引。
+        if (dest.exists() || !isInWatchedDirectory(dest)) return@synchronized false
         val ok = runCatching {
             dest.parentFile?.mkdirs()
-            src.renameTo(dest) || runCatching {
-                src.copyTo(dest, overwrite = true)
-                src.delete()
-            }.getOrDefault(false)
+            if (dest.exists()) return@runCatching false
+            Files.move(src.toPath(), dest.toPath())
+            true
         }.getOrDefault(false)
 
         if (ok) removeFromIndex(entry.quarantinePath)
-        return ok
+        ok
     }
 
-    fun deleteNow(entry: QuarantinedFile): Boolean {
-        val file = File(entry.quarantinePath)
+    fun deleteNow(entry: QuarantinedFile): Boolean = synchronized(FILE_LOCK) {
+        if (!Permissions.hasAllFilesAccess(context)) return@synchronized false
+        val file = ownedQuarantineFile(entry) ?: return@synchronized false
         val ok = !file.exists() || file.delete()
         if (ok) removeFromIndex(entry.quarantinePath)
-        return ok
+        ok
     }
 
-    /** 删除超过保留期的隔离文件。返回删除数量。 */
-    fun purgeExpired(): Int {
-        val cutoff = System.currentTimeMillis() - settings.quarantineRetentionHours * 3_600_000L
-        val expired = listQuarantined().filter { it.quarantinedAt < cutoff }
-        var count = 0
-        for (entry in expired) {
-            if (File(entry.quarantinePath).let { !it.exists() || it.delete() }) {
-                removeFromIndex(entry.quarantinePath)
-                count++
-            }
-        }
-        if (count > 0) Log.i(TAG, "已清理 $count 个过期隔离文件")
-        return count
-    }
+    private fun ownedQuarantineFile(entry: QuarantinedFile): File? = runCatching {
+        File(entry.quarantinePath).canonicalFile.takeIf { it.parentFile == quarantineDir.canonicalFile }
+    }.getOrNull()
 
-    private fun appendIndex(entry: QuarantinedFile) {
+    /** Public beta requires manual review and confirmation for permanent deletion. */
+    fun purgeExpired(): Int = 0
+
+    private fun appendIndex(entry: QuarantinedFile): Boolean =
         runCatching {
             indexFile.appendText(entry.toJson().toString() + "\n")
-        }
-    }
+            true
+        }.getOrDefault(false)
 
     private fun removeFromIndex(quarantinePath: String) {
         runCatching {
@@ -256,6 +279,7 @@ class DownloadJanitor(
     }
 
     companion object {
+        private val FILE_LOCK = Any()
         private const val TAG = "AdCalm"
         private const val QUARANTINE_DIR_NAME = ".AdCalmQuarantine"
         private const val INDEX_NAME = "quarantine_index.jsonl"
@@ -278,6 +302,8 @@ class DownloadJanitor(
         @Volatile
         var lastAdJumpAt: Long = 0L
             private set
+
+        fun clearAdJump() { lastAdJumpAt = 0L }
 
         fun noteAdJump(at: Long) {
             lastAdJumpAt = at

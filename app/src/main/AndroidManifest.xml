@@ -16,14 +16,10 @@
     <!-- Shizuku：向 Shizuku 应用申请 shell 权限。没装 Shizuku 时这条权限无副作用 -->
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
-    <!--
-      联网权限：只用于「下载并安装 Shizuku」这一个由用户主动触发的动作。
-      广告识别、判定、点击全程离线，不需要网络也能完整工作。
-      README 与免责声明里对此有明确说明——不要把这条权限用于别处。
-    -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <!-- 拉起系统安装器安装刚下载的 Shizuku。真正的安装仍需用户在系统对话框里确认 -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Dependency manifests must not reintroduce network or package-install access. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
 
     <application
         android:name=".AdCalmApp"
@@ -47,10 +43,10 @@
         </activity>
 
         <!-- 真正的主界面。启动入口在 SplashActivity，它停一下再进来。
-             exported 保持 true 是为了 adb 能直接拉起来做真机排查。 -->
+             入口由 SplashActivity 转入，其他应用不能直接调用内部主页。 -->
         <activity
             android:name=".ui.MainActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="@string/app_name" />
 
         <activity
@@ -71,7 +67,7 @@
         <activity
             android:name=".ui.QuickStartActivity"
             android:exported="false"
-            android:label="两步开启" />
+            android:label="两步准备" />
 
         <activity
             android:name=".ui.SetupWizardActivity"
@@ -136,17 +132,7 @@
             android:multiprocess="false"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
-        <!--
-          摘掉 ML Kit 自带的遥测子系统（2026-10-05）。
-
-          起因是量耗电时抓到的：电池统计里本应用挂着
-          `...datatransport...JobInfoSchedulerService` 的 **long-wake 任务**，
-          alarm 列表里也有对应条目——那是 ML Kit 的分析上报，会周期性唤醒、联网。
-          而 OCR 用的是**本地模型**，跟它没有关系。
-
-          摘掉三个组件对识别零影响，换来的是"后台不再有周期性唤醒"。
-          这是"几乎不耗电"这条卖点里最实的一块，也是唯一一处**我们主动放弃的能力为零**的优化。
-        -->
+        <!-- 移除捆绑 OCR 依赖的传输调度组件，保留本地模型识别。 -->
         <service
             android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
             tools:node="remove" />

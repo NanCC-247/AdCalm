@@ -4,6 +4,8 @@ import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import cn.adcalm.guard.core.GuardSettings
+import cn.adcalm.guard.core.DownloadActionPolicy
 import cn.adcalm.guard.core.AppClassifier
 import cn.adcalm.guard.core.Permissions
 import cn.adcalm.guard.data.DownloadJanitor
@@ -20,14 +22,21 @@ import cn.adcalm.guard.data.DownloadJanitor
  */
 class DownloadNotificationListener : NotificationListenerService() {
 
+    private lateinit var settings: GuardSettings
+
+    override fun onCreate() {
+        super.onCreate()
+        settings = GuardSettings(getSharedPreferences(AdCalmAccessibilityService.PREFS_NAME, MODE_PRIVATE))
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         if (sbn == null) return
-
+        if (!::settings.isInitialized) return
         val adJumpAt = DownloadJanitor.lastAdJumpAt
         if (adJumpAt <= 0L) return
 
         val now = System.currentTimeMillis()
-        if (now - adJumpAt > CANCEL_WINDOW_MS) return
+        if (!DownloadActionPolicy.allows(settings.enabled, settings.dryRun, settings.autoQuarantine, adJumpAt, now)) return
 
         val pkg = sbn.packageName ?: return
 
@@ -57,6 +66,7 @@ class DownloadNotificationListener : NotificationListenerService() {
         for (action in actions) {
             val title = action.title?.toString() ?: continue
             if (CANCEL_WORDS.none { title.contains(it) }) continue
+            if (!DownloadActionPolicy.allows(settings.enabled, settings.dryRun, settings.autoQuarantine, DownloadJanitor.lastAdJumpAt, System.currentTimeMillis())) return false
             val sent = runCatching { action.actionIntent.send() }.isSuccess
             if (sent) return true
         }
@@ -70,9 +80,6 @@ class DownloadNotificationListener : NotificationListenerService() {
 
     private companion object {
         const val TAG = "AdCalm"
-
-        /** 通知取消只在误跳后的一小段时间内生效，避免误伤用户自己的下载。 */
-        const val CANCEL_WINDOW_MS = 120_000L
 
         val DOWNLOAD_WORDS = listOf("下载", "Download", "downloading", "正在下载")
         val CANCEL_WORDS = listOf("取消", "Cancel", "cancel", "停止")

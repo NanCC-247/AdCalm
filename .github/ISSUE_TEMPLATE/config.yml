@@ -3,3 +3,6 @@ contact_links:
   - name: 使用指南
     url: https://github.com/NanCC-247/AdCalm/blob/main/docs/guides/使用指南.md
     about: 查看开启方式、权限、隔离恢复与常见问题。
+  - name: 隐私与分享数据
+    url: https://github.com/NanCC-247/AdCalm/blob/main/docs/privacy.md
+    about: 查看本机诊断、脱敏摘要与公开反馈范围。

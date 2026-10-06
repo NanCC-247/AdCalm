@@ -21,6 +21,9 @@ Thumbs.db
 # 签名材料
 *.keystore
 *.jks
+/signing.properties
+/keystore.properties
+/release-signing/
 
 # 诊断、崩溃与性能分析数据
 observer_log*.jsonl
@@ -31,6 +34,20 @@ replay_pid*.log
 *.heapsnapshot
 java_pid*.hprof
 _adcalm_*.log
+/diagnostics/
+/diagnostic-exports/
+/observation-exports/
+/snapshots/
+/screenshots/
+/logcat*.txt
+/release-local/
+
+# 私人设备配置、环境变量与临时凭据
+.env
+.env.*
+!.env.example
+/device-local.*
+/adb-devices*.txt
 
 # 本地设计审核与非项目任务
 design-review/
@@ -49,3 +66,5 @@ docs/上传GitHub指南.md
 # 宣传原图保留，重复压缩包与本机制作记录不提交
 docs/artwork/promo/**/*.zip
 docs/artwork/promo/**/制作记录.md
+
+/分享素材/

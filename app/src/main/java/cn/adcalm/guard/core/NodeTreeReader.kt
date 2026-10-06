@@ -18,7 +18,7 @@ object NodeTreeReader {
     fun read(root: AccessibilityNodeInfo?): NodeSnapshot? {
         if (root == null) return null
         val budget = intArrayOf(MAX_NODES)
-        return convert(root, emptyList(), emptyList(), null, 0, budget)
+        return convert(root, emptyList(), emptyList(), null, emptyList(), emptyList(), 0, budget)
     }
 
     private fun convert(
@@ -26,6 +26,8 @@ object NodeTreeReader {
         path: List<Int>,
         ancestors: List<String>,
         parentBounds: RectSnapshot?,
+        siblingClassNames: List<String>,
+        siblingTexts: List<String>,
         depth: Int,
         budget: IntArray,
     ): NodeSnapshot? {
@@ -37,30 +39,28 @@ object NodeTreeReader {
         val bounds = RectSnapshot(rect.left, rect.top, rect.right, rect.bottom)
 
         val childCount = node.childCount
-        val childClassNames = ArrayList<String>(childCount)
-        for (i in 0 until childCount) {
-            node.getChild(i)?.className?.toString()?.let { childClassNames += it }
-        }
-
-        // 兄弟的文案（text 优先，没有就看 contentDescription）——**打分已经不看它了**
-        // （「紧邻广告标识」那条规则 2026-10-05 撤掉了），但采集照旧：撤它的依据就是靠这个
-        // 字段离线量出来的，留着才能复核"广告标识到底是不是关闭按钮的兄弟"这类形状。
-        // 和 childClassNames 一样，是"我这层的所有子节点"，对每个子节点来说就是它的兄弟。
-        val childTexts = ArrayList<String>(childCount)
-        for (i in 0 until childCount) {
-            val child = node.getChild(i) ?: continue
-            val label = child.text?.toString()?.takeIf { it.isNotBlank() }
-                ?: child.contentDescription?.toString()
-            if (!label.isNullOrBlank()) childTexts += label
-        }
+        val rawChildren = (0 until childCount).map { node.getChild(it) }
 
         val ownClassName = node.className?.toString() ?: ""
         val childAncestors = ancestors + ownClassName
 
         val children = ArrayList<NodeSnapshot>(childCount)
         for (i in 0 until childCount) {
-            val child = node.getChild(i) ?: continue
-            convert(child, path + i, childAncestors, bounds, depth + 1, budget)?.let { children += it }
+            val child = rawChildren[i] ?: continue
+            // 仅使用紧邻、可见且有实际面积的同层控件；不将自身/后代正文冒充兄弟证据。
+            val adjacent = listOfNotNull(rawChildren.getOrNull(i - 1), rawChildren.getOrNull(i + 1))
+                .filter { sibling ->
+                    val siblingRect = Rect()
+                    sibling.getBoundsInScreen(siblingRect)
+                    sibling.isVisibleToUser && siblingRect.width() > 0 && siblingRect.height() > 0
+                }
+            val classes = adjacent.mapNotNull { it.className?.toString() }
+            val labels = adjacent.mapNotNull { sibling ->
+                // 语境只用实际可见文字，不用别的控件看不见的描述创造广告标记。
+                sibling.text?.toString()?.takeIf { it.isNotBlank() }
+            }
+            convert(child, path + i, childAncestors, bounds, classes, labels, depth + 1, budget)
+                ?.let { children += it }
         }
 
         return NodeSnapshot(
@@ -76,8 +76,8 @@ object NodeTreeReader {
             parentBounds = parentBounds,
             path = path,
             ancestorClassNames = ancestors,
-            siblingClassNames = childClassNames,
-            siblingTexts = childTexts,
+            siblingClassNames = siblingClassNames,
+            siblingTexts = siblingTexts,
             children = children,
         )
     }

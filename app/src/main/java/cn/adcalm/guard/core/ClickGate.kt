@@ -1,92 +1,32 @@
 package cn.adcalm.guard.core
 
-/**
- * 动手之前的最后一道闸门：分数够了，也不一定该点。
- *
- * 这里的规则不是从打分表推出来的，是从**真机日志里点错了什么**倒推出来的。
- *
- * ## 问题
- *
- * 2026-10-04 晚的 784 条日志里，27 次点击中有 14 次落在根本不是广告的界面上：
- * 某短视频应用的拍摄页、看图片页、账号选择页，某游戏社区应用的发帖编辑页和 Flutter 页，某旅行应用首页。
- * 其中一次点中了某短视频应用登录页右上角的「帮助」，**真的把页面跳走了**，随后又在帮助页上连点两次。
- *
- * 把这 27 次按"节点里有没有指向关闭按钮的证据"分开，界线非常干净：
- *
- * | 证据 | 次数 | 结果 |
- * |---|---|---|
- * | 文案/id/描述含关闭语义，或观测到倒计时递减 | 11 | **11 次全中** |
- * | 只有位置（屏幕角落 + 容器角落） | 16 | 15 次落在非广告界面 |
- *
- * ## 为什么位置证据必须整个拿掉
- *
- * 打分表里「位于屏幕角落安全区」20 分、「位于较大容器的角上」45 分，
- * 两者相加**正好 65**——也就是点击线。于是"它在一个角落里"这一条事实，
- * 单独就能触发点击，不需要任何东西佐证"这个角落是广告的角落"。
- * 而任何界面都有控件待在角落里：某短视频应用的标签栏、游客页的「帮助」、帖子编辑框的提交按钮。
- *
- * 一开始试过"只在开屏语境下放行"，实测不成立，两个判据都坏掉了：
- *
- * - **「刚切换过窗口」**在诊断模式下几乎永远为真——TREE_DUMP 在稳态慢扫时也在写，
- *   所以从日志里根本重建不出"这一刻是不是窗口切换"。
- * - **「应用刚成为前台」**区分不了**冷启动**和**从后台切回来**。
- *   只有冷启动才会弹开屏广告；而用户从别的应用切回某短视频应用时，一到前台就是正常信息流，
- *   那一刻的"角落里的小方块"照样是标签栏。
- *
- * 所以不再给纯位置证据留任何开口。**位置不是证据这一条要贯彻到底。**
- *
- * ## 想处理只有几何特征的广告怎么办
- *
- * 写一条规则。规则命中（[cn.adcalm.guard.rules.RuleSet]）会被算作自带证据，
- * 可以独立触发点击——这也正是 GKD 那套"引擎与规则分离"的做法：
- * 通用的猜测部分收得越紧越好，个案的确定性交给有据可查的规则。
- *
- * ## 代价，说清楚
- *
- * 那 16 次里大约有 1 次是真的（某浏览器的开屏广告，它的关闭按钮确实只有几何特征）。
- * 也就是说这条规则**牺牲了约 6% 的真阳性，换来 15 次误点归零**。
- * 被拦下的候选仍会照常打分并写进日志（判定为 `SUSPECT`），
- * 所以它随时可以从新日志里被重新评估——这不是丢掉信息，只是不对它动手。
- *
- * 纯函数，不接触任何 Android 类，可直接单元测试。
- */
+import cn.adcalm.guard.model.NodeSnapshot
+
+/** 执行动作前的语义复核。高分、规则、倒计时均不能替代完整关闭文案。 */
 object ClickGate {
-
-    /** 闸门给出的结论。 */
     enum class Reason {
-        /** 放行。 */
         OK,
-
-        /**
-         * 输入法窗口在前台，用户正在打字。一律不点。
-         *
-         * 这条是**无歧义**的：关闭按钮不可能长在输入法窗口里。
-         * 2026-10-04 的日志里有两次点击就落在 `android.inputmethodservice.SoftInputWindow`
-         * 作为前台窗口的时刻——用户当时正在某短视频应用登录页输入手机号。
-         * 它对 OCR 那条路更要紧：2026-10-03 的日志里 OCR 把**输入法的「关闭」键**
-         * 认成了关闭按钮，得了 80 分。
-         */
         INPUT_METHOD,
-
-        /**
-         * 分数够，但证据全部来自位置——没有关闭语义、没有倒计时、没有规则命中。
-         *
-         * 降级为"疑似"写进日志，让日志里能看清"我本来想点这里"，但不许动手。
-         */
         NO_EVIDENCE,
+        DISALLOWED_ACTION,
+        UNAVAILABLE,
     }
 
     /**
-     * @param hasStrongEvidence 候选自带关闭语义 / 倒计时 / 规则命中，
-     *        见 [cn.adcalm.guard.model.Candidate.hasStrongEvidence]
-     * @param inputMethodActive 输入法窗口是否在前台
+     * [hasStrongEvidence] 必须来自 [ExplicitClosePolicy]；服务应传入 [snapshot] 再核验。
+     * 保留原有两个参数，供只记录识别结论的调用方兼容。
      */
     fun evaluate(
         hasStrongEvidence: Boolean,
         inputMethodActive: Boolean,
+        snapshot: NodeSnapshot? = null,
     ): Reason = when {
         inputMethodActive -> Reason.INPUT_METHOD
+        snapshot != null && (!snapshot.visible || !snapshot.enabled || !snapshot.bounds.isValid) ->
+            Reason.UNAVAILABLE
+        snapshot != null && ExplicitClosePolicy.hasDisallowedAction(snapshot) -> Reason.DISALLOWED_ACTION
         !hasStrongEvidence -> Reason.NO_EVIDENCE
+        snapshot != null && !ExplicitClosePolicy.hasEvidence(snapshot) -> Reason.NO_EVIDENCE
         else -> Reason.OK
     }
 }

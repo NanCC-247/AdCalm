@@ -23,8 +23,8 @@ android {
         applicationId = "cn.adcalm.guard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1-beta.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -47,8 +47,21 @@ android {
         }
     }
 
+    // Signing material stays outside source control. Without these variables,
+    // assembleRelease produces an unsigned APK for independent source builds.
+    val releaseStore = System.getenv("ADCALM_RELEASE_STORE")
+    if (!releaseStore.isNullOrBlank()) {
+        signingConfigs.create("publicRelease") {
+            storeFile = file(releaseStore)
+            storePassword = System.getenv("ADCALM_RELEASE_STORE_PASSWORD")
+            keyAlias = System.getenv("ADCALM_RELEASE_ALIAS")
+            keyPassword = System.getenv("ADCALM_RELEASE_KEY_PASSWORD")
+        }
+    }
     buildTypes {
         release {
+            isDebuggable = false
+            if (!releaseStore.isNullOrBlank()) signingConfig = signingConfigs.getByName("publicRelease")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -57,6 +70,8 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // Side-by-side recording/tests preserve the user's installed app.
+            if (project.hasProperty("reviewBuild")) applicationIdSuffix = ".review"
         }
     }
 
@@ -87,10 +102,7 @@ dependencies {
     // 模型直接打进 APK，装好就能用，不需要经过 Google Play 服务下载（侧载场景下那条路走不通）。
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 
-    // Shizuku：借 shell 权限的通道。
-    // 有了它，强停其他应用就是一行 `am force-stop`，不用再去设置页点「强行停止」；
-    // 而且完全不经过 AccessibilityService，应用检测不到，也不受 Android 17
-    // Advanced Protection Mode 对无障碍 API 的限制。没装 Shizuku 时自动降级回无障碍路径。
+    // Optional Shizuku integration for explicitly enabled advanced actions.
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
 

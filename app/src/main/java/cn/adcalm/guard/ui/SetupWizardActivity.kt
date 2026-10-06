@@ -1,6 +1,5 @@
 package cn.adcalm.guard.ui
 
-import android.app.ProgressDialog
 import android.os.Bundle
 import android.widget.Toast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -26,7 +25,7 @@ import rikka.shizuku.Shizuku
  * Android 不允许应用直接给自己授权，所以这里做的是"跳到对应的系统设置页 + 回来检测状态"。
  * 每一步都说明了不开启的**具体后果**，而不是笼统地说"建议开启"。
  *
- * Shizuku 那一项是唯一带下载动作的——只有它会联网。
+ * Shizuku 通过浏览器访问官方发布页；AdCalm 不再下载或安装外部 APK。
  */
 class SetupWizardActivity : AppCompatActivity() {
 
@@ -160,7 +159,7 @@ class SetupWizardActivity : AppCompatActivity() {
                 ShizukuShell.Status.Authorized -> "通道自检"
                 ShizukuShell.Status.NotAuthorized -> "去授权"
                 ShizukuShell.Status.InstalledNotRunning -> "如何启动"
-                ShizukuShell.Status.NotInstalled -> "下载并安装"
+                ShizukuShell.Status.NotInstalled -> "打开官网"
             },
             open = { onShizukuStep() },
         ),
@@ -190,7 +189,7 @@ class SetupWizardActivity : AppCompatActivity() {
                 "也没有那 1~2 秒的页面闪烁\n" +
                 "· 能删掉应用商店私有目录里的广告安装包（无 root 时唯一碰不到的地方）\n" +
                 "· 完全不经过无障碍服务，应用检测不到它，也不受 Android 17 对无障碍 API 的限制\n\n" +
-                "点下方按钮会从 Shizuku 的 GitHub 官方仓库下载最新版并调起系统安装器。" +
+                "点下方按钮会在浏览器中打开官方发布页，由你自行下载与安装。" +
                 "这是本应用唯一会联网的地方。\n\n" +
                 "代价：每次手机重启需要用无线调试重新激活一次 Shizuku。"
     }
@@ -256,175 +255,11 @@ class SetupWizardActivity : AppCompatActivity() {
      * 查一次是为了拿到**确切的文件名**——只给一个笼统的"去官网下"，
      * 用户到了发布页还得自己猜该下哪个 asset。
      */
-    @Suppress("DEPRECATION")
     private fun confirmDownloadAndInstall() {
-        val querying = ProgressDialog(this).apply {
-            setMessage("查询最新版本…")
-            setCancelable(false)
-            show()
-        }
-
-        scope.launch {
-            val url = withContext(Dispatchers.IO) { ShizukuInstaller.resolveLatestApkUrl() }
-            querying.dismiss()
-
-            if (url == null) {
-                showQueryFailedHint()
-                return@launch
-            }
-            showDownloadConfirmDialog(url)
-        }
-    }
-
-    /**
-     * 下载前的说明。
-     *
-     * 这里是**主动**说明网络情况，而不是等下载失败了再解释。
-     *
-     * 文案基于实测：同一台设备，电脑挂着代理时 360 KB/s，手机没代理只有 3.6 KB/s——
-     * 差两个数量级。所以真正有用的建议是"在电脑上下好再传过去"，
-     * 而不是让用户在手机上干等。
-     */
-    private fun showDownloadConfirmDialog(url: String) {
-        val fileName = ShizukuInstaller.apkFileName(url)
-
-        val message = buildString {
-            append("将从 Shizuku 的 GitHub 官方仓库下载：\n")
-            append(fileName).append("\n\n")
-
-            append("⚠ 没有代理的话，手机上连 GitHub 会很慢\n\n")
-
-            append("官方发布页\n").append(RELEASES_URL).append("\n\n")
-
-            // 这里不再重复上面已经给过的文件名——那一段会多占 3 行，
-            // 把末尾的合规说明挤出可视区（真机 font_scale=1.15 下测过）。
-            append("如果 15 秒内拿不到 100KB，会判定这个源太慢并自动换下一个；")
-            append("全都慢的话会提示你手动下载。\n\n")
-
-            append("这是本应用唯一会联网的地方——广告识别、判定、点击全程离线。")
-            append("不装 Shizuku 也完全不影响使用，强停会自动退回无障碍路径。")
-        }
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle("下载 Shizuku")
-            .setMessage(message)
-            .setPositiveButton("在应用内下载") { _, _ -> downloadAndInstall(url) }
-            // 标签必须短。三个按钮一行放不下时 AlertDialog 会改成竖排，
-            // 而竖排的高度超出弹窗剩余空间，按钮区就被压成一条要滚动才看得全的窄条
-            // （真机 font_scale=1.15 下复现过：取消被切掉、复制按钮完全看不见）。
-            .setNeutralButton("复制信息") { _, _ ->
-                copyToClipboard("$RELEASES_URL\n$fileName")
-                toast("已复制官网地址和文件名，可粘到浏览器或下载工具里")
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    @Suppress("DEPRECATION")
-    private fun downloadAndInstall(url: String) {
-        // ProgressDialog 虽然已废弃，但它是这里最合适的：自绘一个带进度条、
-        // 不可取消、能跟随 Activity 生命周期的对话框要写不少代码，收益不成正比。
-        val progress = ProgressDialog(this).apply {
-            setTitle("正在下载 Shizuku")
-            setMessage("下载中…")
-            setProgressStyle(ProgressDialog.STYLE_HORIZONTAL)
-            max = 100
-            setProgress(0)
-            setCancelable(false)
-            show()
-        }
-
-        scope.launch {
-            val apk = withContext(Dispatchers.IO) {
-                ShizukuInstaller.download(this@SetupWizardActivity, url) { read, total ->
-                    runOnUiThread {
-                        if (total > 0) {
-                            val percent = (read * 100 / total).toInt()
-                            if (progress.isIndeterminate) progress.isIndeterminate = false
-                            progress.setProgress(percent)
-                            progress.setMessage("下载中… $percent%")
-                        } else {
-                            // 镜像常常不回 Content-Length。这时不能因为拿不到总数
-                            // 就不更新界面——退化成"只显示已下载量"，至少让用户知道在动。
-                            if (!progress.isIndeterminate) progress.isIndeterminate = true
-                            progress.setMessage(
-                                String.format(
-                                    java.util.Locale.US,
-                                    "下载中… 已下载 %.1f MB",
-                                    read / 1024.0 / 1024.0,
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-            progress.dismiss()
-
-            if (apk == null) {
-                showDownloadFailedHint(ShizukuInstaller.apkFileName(url))
-                return@launch
-            }
-
-            if (!ShizukuInstaller.install(this@SetupWizardActivity, apk)) {
-                toast("无法调起安装器，请检查「安装未知应用」权限")
-            }
-            // 不在这里删缓存——用户装完可能要重试，下次下载会覆盖
-        }
-    }
-
-    /** 连版本号都没查到——通常是 GitHub API 被限流或不通。 */
-    private fun showQueryFailedHint() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("查询失败")
-            .setMessage(
-                "拿不到 Shizuku 最新版的下载地址。\n\n" +
-                    "GitHub 的 API 在国内有时会被限流或连不上。\n\n" +
-                    "官方发布页\n$RELEASES_URL\n\n" +
-                    "在发布页里找 Assets 下的 apk 文件（形如 shizuku-v*-release.apk）即可。\n\n" +
-                    "不装 Shizuku 也完全不影响使用——强停会自动退回无障碍路径。"
-            )
-            .setPositiveButton("复制官网地址") { _, _ ->
-                copyToClipboard(RELEASES_URL)
-            }
-            .setNegativeButton("知道了", null)
-            .show()
-    }
-
-    private fun copyToClipboard(text: String) {
-        val clipboard = getSystemService(android.content.ClipboardManager::class.java)
-        clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Shizuku", text))
-        toast("已复制")
-    }
-
-    /**
-     * 下载失败时的说明。
-     *
-     * 这里刻意不写"请重试"——重试几乎不会更好。实测过同一个文件电脑上 360 KB/s、
-     * 手机上 3.6 KB/s，差两个数量级，瓶颈在运营商到境外的路由，不在应用里。
-     * 所以直接给官方地址和文件名，让他换台设备下。
-     */
-    private fun showDownloadFailedHint(fileName: String) {
-        val message = buildString {
-            append("几个下载源都试过了，速度都太慢或连不上。\n\n")
-            append("原因是 Shizuku 的安装包放在 GitHub 上，服务器在境外，")
-            append("没有代理的话手机直连很慢——实测过 3.6 KB/s，")
-            append("而挂着代理的电脑上同一个文件能跑 360 KB/s。\n\n")
-            append("这不是应用出错，也不是重试就能解决的。建议换台设备下载：\n\n")
-            append("官方发布页\n").append(RELEASES_URL).append("\n\n")
-            append("需要的文件\n").append(fileName).append("\n\n")
-            append("在电脑上下好之后传到手机，点开即可安装。\n\n")
-            append("不装 Shizuku 也完全不影响使用——强停会自动退回无障碍路径。")
-        }
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle("下载没成功")
-            .setMessage(message)
-            .setPositiveButton("复制下载信息") { _, _ ->
-                copyToClipboard("$RELEASES_URL\n$fileName")
-                toast("已复制，可直接粘到浏览器或下载工具里")
-            }
-            .setNegativeButton("知道了", null)
-            .show()
+        MaterialAlertDialogBuilder(this).setTitle("打开 Shizuku 官网？")
+            .setMessage("基础识别无需 Shizuku。可选增强功能需要你自行从官方发布页下载、安装、激活及授权。AdCalm 不下载外部安装包，也不请求安装未知应用权限。")
+            .setPositiveButton("打开官方发布页") { _, _ -> ShizukuInstaller.openOfficialPage(this) }
+            .setNegativeButton("取消", null).show()
     }
 
     private fun open(intent: android.content.Intent) {
